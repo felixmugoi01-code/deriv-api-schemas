@@ -1,25 +1,36 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Transfer (Deposit) Response",
-  "description": "Transaction status for the transfer. Transfers complete synchronously, so `status` is typically `complete`.",
+  "description": "Result of the transfer. A real transfer returns `status` `complete`; a `dry_run` returns `dry_run_ok`.",
   "type": "object",
   "properties": {
     "data": {
       "type": "object",
+      "description": "Result of the transfer call.",
       "properties": {
         "status": {
           "type": "string",
-          "enum": ["pending", "complete", "rejected", "failed"],
-          "description": "Current status of the transaction. Transfers complete synchronously (`complete`).",
+          "enum": ["complete", "dry_run_ok"],
+          "description": "`complete` when a real transfer was executed. `dry_run_ok` when `dry_run` was `true` and only validation was performed.",
           "example": "complete"
         },
         "transaction_id": {
           "type": ["integer", "null"],
-          "description": "Identifier of the transaction. May be null in some cases regardless of `status`.",
+          "description": "Identifier of the created transaction. `null` when `status` is `dry_run_ok`.",
           "example": 123
+        },
+        "client_real_name": {
+          "type": ["string", "null"],
+          "description": "Recipient's real name. Returned when the recipient shares it by setting `show_real_name` to `true`. `null` if they keep it private or it cannot be resolved.",
+          "example": "Jane Doe"
+        },
+        "client_is_agent": {
+          "type": "boolean",
+          "description": "Whether the recipient is itself another payment agent. `true` for transfers between two payment agents, `false` for a transfer to a regular client.",
+          "example": false
         }
       },
-      "required": ["status", "transaction_id"]
+      "required": ["status", "transaction_id", "client_real_name", "client_is_agent"]
     },
     "metadata": {
       "type": "object",

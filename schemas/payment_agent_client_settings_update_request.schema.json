@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Withdrawal Verification Code Request",
-  "description": "Request a one-time verification code to be sent to the client's registered contact before submitting a withdrawal",
+  "title": "Update Client Settings Request",
+  "description": "Update the authenticated client's payment agent privacy preference",
   "type": "object",
   "properties": {
     "headers": {
@@ -29,25 +29,15 @@
       "properties": {
         "data": {
           "type": "object",
-          "description": "Verification code request parameters. Must match the intended withdrawal.",
+          "description": "Settings to update.",
           "properties": {
-            "agent_id": {
-              "type": "integer",
-              "description": "Unique identifier of the payment agent to withdraw through.",
-              "example": 42
-            },
-            "amount": {
-              "type": "string",
-              "description": "Intended withdrawal amount as a decimal string.",
-              "example": "50.00"
-            },
-            "currency": {
-              "type": "string",
-              "description": "Currency code for the intended withdrawal.",
-              "example": "USD"
+            "show_real_name": {
+              "type": "boolean",
+              "description": "New value for the privacy preference. `true` reveals the client's real name to payment agents on future transactions; `false` withholds it.",
+              "example": true
             }
           },
-          "required": ["agent_id", "amount", "currency"]
+          "required": ["show_real_name"]
         }
       },
       "required": ["data"]

@@ -43,7 +43,7 @@
             },
             "currency": {
               "type": "string",
-              "description": "ISO 4217 currency code for the transfer. Must be supported by the authenticated payment agent.",
+              "description": "Currency code for the transfer. Must be supported by the authenticated payment agent.",
               "example": "USD"
             },
             "notes": {
@@ -56,6 +56,11 @@
               "pattern": "^[\\w\\-]{1,128}$",
               "description": "Optional idempotency key, 1-128 characters (letters, digits, underscore, hyphen). Reusing a previous `request_id` returns `RequestIDUsed` instead of creating a duplicate transfer. Unlike withdrawals, a transfer's `request_id` cannot be used to look up status afterwards — transfers complete synchronously in this same response.",
               "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            },
+            "dry_run": {
+              "type": "boolean",
+              "description": "When `true`, the request runs validation and returns success without creating a transaction. Use to preflight a transfer before committing. The response `status` is `dry_run_ok` and `transaction_id` is `null`. A `dry_run` never fails with `RequestIDUsed` — uniqueness is checked only on the real call.",
+              "example": false
             }
           },
           "required": ["to_nickname", "amount", "currency"]

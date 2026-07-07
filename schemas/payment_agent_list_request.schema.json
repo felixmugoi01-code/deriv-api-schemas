@@ -24,7 +24,7 @@
       "properties": {
         "currency": {
           "type": "string",
-          "description": "ISO 4217 currency code. Only agents that support this currency are returned.",
+          "description": "Currency code. Only agents that support this currency are returned.",
           "example": "USD"
         },
         "country": {

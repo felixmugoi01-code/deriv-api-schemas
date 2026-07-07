@@ -71,7 +71,7 @@
         "status": {
           "description": "Current status of the run",
           "type": "string",
-          "enum": ["running"]
+          "enum": ["running", "paused", "stopped"]
         },
         "stop_reason": {
           "description": "Reason the run was stopped (absent if still running or paused)",

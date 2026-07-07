@@ -62,7 +62,7 @@
             "properties": {
               "currency": {
                 "type": "string",
-                "description": "ISO 4217 currency code.",
+                "description": "Currency code.",
                 "example": "USD"
               },
               "deposit_commission": {

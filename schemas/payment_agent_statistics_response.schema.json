@@ -16,7 +16,7 @@
         "available_currencies": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Sorted, deduplicated list of ISO 4217 currency codes supported by at least one active payment agent.",
+          "description": "Sorted, deduplicated list of currency codes supported by at least one active payment agent.",
           "example": ["EUR", "IDR", "NGN", "USD"]
         }
       },

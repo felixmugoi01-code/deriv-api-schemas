@@ -43,7 +43,7 @@
             },
             "currency": {
               "type": "string",
-              "description": "ISO 4217 currency code for the withdrawal. Must be supported by the target payment agent.",
+              "description": "Currency code for the withdrawal. Must be supported by the target payment agent.",
               "example": "USD"
             },
             "verification_code": {

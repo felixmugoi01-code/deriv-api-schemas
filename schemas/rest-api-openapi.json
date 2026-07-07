@@ -1434,11 +1434,12 @@
             "required": true,
             "schema": {
               "type": "string",
+              "pattern": "^[A-Z_]{1,18}$",
               "examples": [
                 "USD"
               ]
             },
-            "description": "ISO 4217 currency code. Only agents that support this currency are returned."
+            "description": "Currency code. Only agents that support this currency are returned."
           },
           {
             "name": "country",
@@ -1446,6 +1447,7 @@
             "required": false,
             "schema": {
               "type": "string",
+              "pattern": "^[a-z]{2}$",
               "examples": [
                 "id"
               ]
@@ -1509,7 +1511,7 @@
             }
           },
           "400": {
-            "description": "Bad request — missing or invalid query parameters (e.g. `currency` not supplied). `errors[0].code` will be `InputError`.",
+            "description": "Bad request — missing or invalid query parameters. `errors[0].code` will be one of:\n\n- `InvalidCurrency` — `currency` does not match the required format (1-18 characters, uppercase letters and underscores)\n- `InvalidCountry` — `country` does not match the required format (lowercase 2-letter ISO 3166-1 alpha-2)\n- `InputError` — a required query parameter is missing or another input failed validation",
             "content": {
               "application/json": {
                 "schema": {
@@ -1582,7 +1584,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^(?:[1-9]\\d*|me)$"
             },
             "description": "Numeric ID of the payment agent (as returned by `GET /payment-agents/v1/agents`) or the literal string `\"me\"` to return the authenticated client's own agent profile. Any other non-numeric value returns `InvalidAgentID`."
           }
@@ -1802,13 +1805,256 @@
         }
       }
     },
+    "/payment-agents/v1/clients/me": {
+      "get": {
+        "tags": [
+          "Payment Agent"
+        ],
+        "summary": "Get the caller's client settings",
+        "description": "Returns the authenticated client's current settings for using payment agents: whether they can receive deposits from payment agents, whether they can withdraw funds through a payment agent, and whether their real name is shared with agents on transactions. Clients that have never used a payment agent see defaults: `deposit_enabled: true`, `withdraw_enabled: true`, `show_real_name: false`.",
+        "operationId": "b5c6d7e8-f9a0-1234-5678-9abcdef01234",
+        "security": [
+          {
+            "oauth2": [
+              "payment"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — current client settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientSettings"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {},
+                      "description": "Empty on success."
+                    },
+                    "metadata": {
+                      "$ref": "#/components/schemas/PAMetadata"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "errors",
+                    "metadata"
+                  ],
+                  "examples": [
+                    {
+                      "data": {
+                        "deposit_enabled": true,
+                        "withdraw_enabled": true,
+                        "show_real_name": false
+                      },
+                      "errors": [],
+                      "metadata": {
+                        "endpoint": "/payment-agents/v1/clients/me",
+                        "method": "GET",
+                        "timing": 0.018
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — valid token but insufficient scope (`payment` scope required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error — `errors[0].code` will be `InternalError`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timeout.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Payment Agent"
+        ],
+        "summary": "Update the caller's client settings",
+        "description": "Updates the authenticated client's preference for whether payment agents can see their real name on transactions. Set `show_real_name: true` to reveal it, `false` to withhold it. Returns the updated `ClientSettings`.\n\nA client's first-ever payment-agent interaction registers their account — see the 400/500 responses for errors that only apply on that first call.",
+        "operationId": "c6d7e8f9-a0b1-2345-6789-abcdef012345",
+        "security": [
+          {
+            "oauth2": [
+              "payment"
+            ]
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "description": "Settings to update.",
+                    "properties": {
+                      "show_real_name": {
+                        "type": "boolean",
+                        "description": "New value for the privacy preference. `true` reveals the client's real name to payment agents on future transactions. `false` withholds it.",
+                        "examples": [
+                          true
+                        ]
+                      }
+                    },
+                    "required": [
+                      "show_real_name"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK — updated client settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ClientSettings"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {},
+                      "description": "Empty on success."
+                    },
+                    "metadata": {
+                      "$ref": "#/components/schemas/PAMetadata"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "errors",
+                    "metadata"
+                  ],
+                  "examples": [
+                    {
+                      "data": {
+                        "deposit_enabled": true,
+                        "withdraw_enabled": true,
+                        "show_real_name": true
+                      },
+                      "errors": [],
+                      "metadata": {
+                        "endpoint": "/payment-agents/v1/clients/me",
+                        "method": "PATCH",
+                        "timing": 0.032
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — `errors[0].code` will be one of:\n\n- `NoClientWallet` — the client has no wallet available for payment-agent transactions (only reachable on the client's first-ever payment-agent call)\n- `InputError` — `show_real_name` is missing, or another input failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — valid token but insufficient scope (`payment` scope required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error — `errors[0].code` will be one of:\n\n- `ClientIdentityLookupFailed` — the client's account details could not be retrieved (only reachable on the client's first-ever payment-agent call)\n- `WalletLookupFailed` — the client's wallet details could not be retrieved (only reachable on the client's first-ever payment-agent call)\n- `InternalError` — an unexpected error occurred\n\nThese errors are transient. Retrying the request is reasonable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timeout.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/payment-agents/v1/transfer": {
       "post": {
         "tags": [
           "Payment Agent"
         ],
         "summary": "Transfer funds to a client (payment agent deposit)",
-        "description": "Lets an authenticated payment agent deposit funds directly into a client's Deriv wallet, identified by their account nickname (`to_nickname`). On success, returns a transaction status with `status: \"complete\"` and a `transaction_id`.\n\nBusiness rules enforced (each maps to a specific error code if not met):\n\n- Caller must be a registered, active payment agent (`AgentIDInvalid`, `AgentInactive`).\n- Agent must support the requested `currency` (`AgentCurrencyUnsupported`).\n- The recipient must not be the calling payment agent's own Deriv account (`AgentSelfTransfer`).\n- `to_nickname` must match exactly one existing Deriv account (`NicknameNotFound`).\n- Recipient account must be able to receive the funds (`NoClientWallet`).\n- Recipient's country of residence must be served by the agent (`ClientCountryUnsupported`).\n- Agent's wallet must hold enough funds to cover the transfer (`WalletFundsInsufficient`).",
+        "description": "Lets an authenticated payment agent deposit funds directly into a client's Deriv wallet, identified by their account nickname (`to_nickname`).\n\nOn success returns a `TransferResult` — `status: \"complete\"` with a `transaction_id` for a real transfer, or `status: \"dry_run_ok\"` with `transaction_id: null` when `dry_run: true` is set on the request. `client_real_name` and `client_is_agent` describe the recipient.\n\nSee the 400 response for the full list of validation and business-rule error codes.",
         "operationId": "d4e5f6a7-b8c9-0123-def0-123456789003",
         "security": [
           {
@@ -1837,6 +2083,7 @@
                       },
                       "amount": {
                         "type": "string",
+                        "pattern": "^(?:0|[1-9]\\d{0,13})(?:\\.\\d{1,18})?$",
                         "description": "Amount to transfer expressed as a decimal string.",
                         "examples": [
                           "100.00"
@@ -1844,7 +2091,8 @@
                       },
                       "currency": {
                         "type": "string",
-                        "description": "ISO 4217 currency code for the transfer. Must be supported by the authenticated payment agent.",
+                        "pattern": "^[A-Z_]{1,18}$",
+                        "description": "Currency code for the transfer. Must be supported by the authenticated payment agent.",
                         "examples": [
                           "USD"
                         ]
@@ -1862,6 +2110,13 @@
                         "description": "Optional idempotency key, 1-128 characters (letters, digits, underscore, hyphen). Reusing a previous `request_id` returns `RequestIDUsed` instead of creating a duplicate transfer. Unlike withdrawals, a transfer's `request_id` cannot be used to look up status afterwards — transfers complete synchronously in this same response.",
                         "examples": [
                           "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                        ]
+                      },
+                      "dry_run": {
+                        "type": "boolean",
+                        "description": "When `true`, the request runs validation and returns success without creating a transaction. Use to preflight a transfer before committing. Response `status` will be `\"dry_run_ok\"` and `transaction_id` will be `null`. Note: `request_id` uniqueness is checked only on the real call — a `dry_run` will not fail with `RequestIDUsed` even if the `request_id` has been used before.",
+                        "examples": [
+                          false
                         ]
                       }
                     },
@@ -1881,14 +2136,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK — the transfer was completed. `data.status` will be `\"complete\"` and `data.transaction_id` identifies the resulting transaction.",
+            "description": "OK — the transfer completed, or was validated in dry-run mode. See `TransferResult`.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/TransactionStatus"
+                      "$ref": "#/components/schemas/TransferResult"
                     },
                     "errors": {
                       "type": "array",
@@ -1908,7 +2163,9 @@
                     {
                       "data": {
                         "status": "complete",
-                        "transaction_id": 123
+                        "transaction_id": 123,
+                        "client_real_name": "Jane Doe",
+                        "client_is_agent": false
                       },
                       "errors": [],
                       "metadata": {
@@ -1923,7 +2180,7 @@
             }
           },
           "400": {
-            "description": "Bad request — `errors[0].code` will be one of:\n\n- `AgentIDInvalid` — the authenticated client is not a registered payment agent\n- `AgentInactive` — the authenticated payment agent account is currently inactive\n- `AgentSelfTransfer` — the `to_nickname` provided belongs to the calling payment agent. An agent cannot transfer funds to their own account\n- `AgentCurrencyUnsupported` — the agent does not support the requested `currency`\n- `NicknameNotFound` — `to_nickname` does not match any Deriv account\n- `NoClientWallet` — the recipient account cannot receive the funds\n- `ClientCountryUnsupported` — the recipient's country of residence is not covered by this agent\n- `WalletFundsInsufficient` — the agent's wallet does not hold enough funds for this transfer\n- `InvalidRequestIDFormat` — `request_id` does not match the required format (1-128 characters: letters, digits, underscore, hyphen)\n- `RequestIDUsed` — the `request_id` has already been used. It must be unique per transfer",
+            "description": "Bad request — `errors[0].code` will be one of:\n\n- `AgentIDNotFound` — the authenticated client is not a registered payment agent\n- `AgentInactive` — the authenticated payment agent account is currently inactive\n- `AgentSelfTransfer` — the `to_nickname` provided belongs to the calling payment agent. An agent cannot transfer funds to their own account\n- `TransferToAgentNotAllowed` — the recipient is another payment agent and the calling agent is not permitted to transfer to other payment agents\n- `TransferAgentCurrencyUnsupported` — the recipient is another payment agent that does not support the transfer currency\n- `AgentCurrencyUnsupported` — the agent does not support the requested `currency`\n- `NicknameNotFound` — `to_nickname` does not match any Deriv account\n- `NoClientWallet` — the recipient account cannot receive the funds\n- `WalletDisabled` — the recipient's wallet is currently disabled\n- `DepositDisabled` — deposits to the recipient's wallet are currently disabled\n- `ClientCountryUnsupported` — the recipient's country of residence is not covered by this agent\n- `WithdrawalAmountMinimum` — `amount` is below the agent's configured minimum for this currency\n- `WithdrawalAmountMaximum` — `amount` exceeds the agent's configured maximum for this currency\n- `WalletFundsInsufficient` — the agent's wallet does not hold enough funds for this transfer\n- `DailyTransferCountLimit` — the agent has reached the maximum number of transfers allowed in 24 hours\n- `DailyTransferAmountLimit` — this transfer would exceed the maximum transfer amount allowed in 24 hours\n- `InvalidCurrency` — `currency` does not match the required format (1-18 characters, uppercase letters and underscores)\n- `InvalidAmount` — `amount` is not a valid decimal string\n- `InvalidRequestIDFormat` — `request_id` does not match the required format (1-128 characters: letters, digits, underscore, hyphen)\n- `RequestIDUsed` — the `request_id` has already been used. It must be unique per transfer\n- `InputError` — a required field is missing or another input failed validation\n- `ClientDepositDisabled` — the recipient client is not allowed to receive deposits from payment agents\n- `AgentWithdrawDisabled` — the calling agent is not allowed to withdraw from their own wallet, which is required to fund a `POST /transfer`",
             "content": {
               "application/json": {
                 "schema": {
@@ -2017,7 +2274,7 @@
           "Payment Agent"
         ],
         "summary": "Request a withdrawal verification code",
-        "description": "Requests a one-time verification code be sent to the client's registered contact (email or phone). Call this before submitting a withdrawal via `POST /payment-agents/v1/withdraw` — the code must be included as `verification_code` in that request. The code is valid until `expires_at` (epoch seconds). A new code cannot be requested before `next_request_at` (epoch seconds).\n\nThe same agent eligibility rules checked by the withdrawal endpoint are enforced here (`AgentIDInvalid`, `AgentInactive`, `AgentSelfWithdraw`, `AgentCurrencyUnsupported`), so if this request succeeds, the subsequent withdrawal will not fail those checks.",
+        "description": "Requests a one-time verification code be sent to the client's registered contact (email or phone). Call this before submitting a withdrawal via `POST /payment-agents/v1/withdraw` — the code must be included as `verification_code` in that request. The code is valid until `expires_at` (epoch seconds). A new code cannot be requested before `next_request_at` (epoch seconds).\n\nThe same agent-eligibility and business-rule checks that guard `POST /payment-agents/v1/withdraw` also run here — if this request succeeds, the subsequent withdrawal will not fail those checks. See the 400 response for the full list of error codes.",
         "operationId": "f6a7b8c9-d0e1-2345-f012-345678901005",
         "security": [
           {
@@ -2039,13 +2296,15 @@
                     "properties": {
                       "agent_id": {
                         "type": "integer",
-                        "description": "Unique identifier of the payment agent to withdraw through.",
+                        "minimum": 1,
+                        "description": "Unique identifier of the payment agent to withdraw through, as returned by `GET /payment-agents/v1/agents`. Values below `1` are rejected with `InvalidAgentID`.",
                         "examples": [
                           42
                         ]
                       },
                       "amount": {
                         "type": "string",
+                        "pattern": "^(?:0|[1-9]\\d{0,13})(?:\\.\\d{1,18})?$",
                         "description": "Intended withdrawal amount as a decimal string.",
                         "examples": [
                           "50.00"
@@ -2053,7 +2312,8 @@
                       },
                       "currency": {
                         "type": "string",
-                        "description": "ISO 4217 currency code for the intended withdrawal.",
+                        "pattern": "^[A-Z_]{1,18}$",
+                        "description": "Currency code for the intended withdrawal.",
                         "examples": [
                           "USD"
                         ]
@@ -2118,7 +2378,7 @@
             }
           },
           "400": {
-            "description": "Bad request — `errors[0].code` will be one of:\n\n- `AgentIDInvalid` — no payment agent exists with the given `agent_id`\n- `AgentInactive` — the target payment agent is not currently active\n- `AgentSelfWithdraw` — the authenticated client is the registered owner of the selected payment agent. A client cannot withdraw through a payment agent account they own\n- `AgentCurrencyUnsupported` — the agent does not support the requested `currency`\n- `OtpRateLimitExceeded` — too many verification code requests in a short period. `errors[0].detail.next_request_at` indicates when a new request can be made",
+            "description": "Bad request — `errors[0].code` will be one of:\n\n- `InvalidAgentID` — `agent_id` is less than 1\n- `AgentIDNotFound` — no payment agent exists with the given `agent_id`\n- `AgentInactive` — the target payment agent is not currently active\n- `AgentSelfWithdraw` — the authenticated client is the registered owner of the selected payment agent. A client cannot withdraw through a payment agent account they own\n- `AgentCurrencyUnsupported` — the agent does not support the requested `currency`\n- `ClientCountryUnsupported` — the client's country of residence is not covered by this agent\n- `WithdrawalAmountMinimum` — `amount` is below the agent's minimum withdrawal limit for this currency\n- `WithdrawalAmountMaximum` — `amount` exceeds the agent's maximum withdrawal limit for this currency\n- `DailyWithdrawalCountLimit` — the client has reached the maximum number of withdrawals allowed in 24 hours\n- `DailyWithdrawalAmountLimit` — this withdrawal would exceed the maximum withdrawal amount allowed in 24 hours\n- `InvalidCurrency` — `currency` does not match the required format\n- `InvalidAmount` — `amount` is not a valid decimal string\n- `OtpRateLimitExceeded` — too many verification code requests in a short period. `errors[0].detail.next_request_at` indicates when a new request can be made\n- `InputError` — a required field is missing or another input failed validation\n- `ClientWithdrawDisabled` — the calling client is not allowed to withdraw funds through a payment agent\n- `AgentDepositDisabled` — the target agent is not allowed to receive deposits into their own wallet, which is required to complete a withdrawal through them",
             "content": {
               "application/json": {
                 "schema": {
@@ -2198,7 +2458,7 @@
           "Payment Agent"
         ],
         "summary": "Withdraw funds via a payment agent",
-        "description": "Lets an authenticated client withdraw funds from their Deriv wallet via a payment agent. The agent is identified by `agent_id`. The withdrawal moves the requested amount out of the client's wallet and into the agent's wallet. The agent then settles the equivalent value with the client outside of Deriv.\n\nBefore calling this endpoint, request a one-time verification code via `POST /payment-agents/v1/withdraw/verification_code` and supply it as `verification_code`. The code must be 6 digits and within its validity window.\n\nBusiness rules enforced (each maps to a specific error code if not met):\n\n- A payment agent with the given `agent_id` must exist and be active (`AgentIDInvalid`, `AgentInactive`).\n- The authenticated client must not be the owner of the selected payment agent (`AgentSelfWithdraw`).\n- The agent must support the requested `currency` (`AgentCurrencyUnsupported`).\n- The client's account must hold a wallet to withdraw from (`NoClientWallet`).\n- The client's country of residence must be one the agent serves (`ClientCountryUnsupported`).\n- `amount` must satisfy the agent's withdrawal limits for the currency, if configured (`WithdrawalAmountMinimum`, `WithdrawalAmountMaximum`).\n- The client's wallet must hold sufficient funds (`WalletFundsInsufficient`).\n- `verification_code` must be the correct 6-digit code received from `POST /payment-agents/v1/withdraw/verification_code` (`InvalidOTP`, `OtpValidationRateLimitExceeded`).",
+        "description": "Lets an authenticated client withdraw funds from their Deriv wallet via a payment agent. The agent is identified by `agent_id`. The withdrawal moves the requested amount out of the client's wallet and into the agent's wallet. The agent then settles the equivalent value with the client outside of Deriv.\n\nBefore calling this endpoint, request a one-time verification code via `POST /payment-agents/v1/withdraw/verification_code` and supply it as `verification_code`. The code must be 6 digits and within its validity window.\n\nSee the 400 response for the full list of validation and business-rule error codes.",
         "operationId": "e5f6a7b8-c9d0-1234-ef01-234567890004",
         "security": [
           {
@@ -2220,13 +2480,15 @@
                     "properties": {
                       "agent_id": {
                         "type": "integer",
-                        "description": "Unique identifier of the payment agent to withdraw through, as returned by `GET /payment-agents/v1/agents`.",
+                        "minimum": 1,
+                        "description": "Unique identifier of the payment agent to withdraw through, as returned by `GET /payment-agents/v1/agents`. Values below `1` are rejected with `InvalidAgentID`.",
                         "examples": [
                           42
                         ]
                       },
                       "amount": {
                         "type": "string",
+                        "pattern": "^(?:0|[1-9]\\d{0,13})(?:\\.\\d{1,18})?$",
                         "description": "Amount to withdraw as a decimal string. Must satisfy the agent's `withdrawal_minimum` and `withdrawal_maximum` limits for the currency.",
                         "examples": [
                           "50.00"
@@ -2234,7 +2496,8 @@
                       },
                       "currency": {
                         "type": "string",
-                        "description": "ISO 4217 currency code for the withdrawal. Must be supported by the target payment agent.",
+                        "pattern": "^[A-Z_]{1,18}$",
+                        "description": "Currency code for the withdrawal. Must be supported by the target payment agent.",
                         "examples": [
                           "USD"
                         ]
@@ -2322,7 +2585,7 @@
             }
           },
           "400": {
-            "description": "Bad request — `errors[0].code` will be one of:\n\n- `AgentIDInvalid` — no payment agent exists with the given `agent_id`\n- `AgentInactive` — the target payment agent is currently inactive\n- `AgentSelfWithdraw` — the authenticated client is the registered owner of the selected payment agent. A client cannot withdraw through a payment agent account they own\n- `AgentCurrencyUnsupported` — the agent does not support the requested `currency`\n- `VerificationCodeFormatInvalid` — `verification_code` is not a 6-digit numeric string\n- `NoClientWallet` — the authenticated client's account has no wallet to withdraw from\n- `ClientCountryUnsupported` — the client's country of residence is not covered by this agent\n- `WithdrawalAmountMinimum` — `amount` is below the agent's minimum withdrawal limit for this currency\n- `WithdrawalAmountMaximum` — `amount` exceeds the agent's maximum withdrawal limit for this currency\n- `WalletFundsInsufficient` — the client's wallet does not hold enough funds for this withdrawal\n- `InvalidRequestIDFormat` — `request_id` does not match the required format (1-128 characters: letters, digits, underscore, hyphen)\n- `RequestIDUsed` — the `request_id` has already been used. It must be unique per withdrawal\n- `InvalidOTP` — the `verification_code` is incorrect. `errors[0].detail.message` contains the error message\n- `OtpValidationRateLimitExceeded` — too many incorrect verification code attempts. `errors[0].detail.message` contains the error message",
+            "description": "Bad request — `errors[0].code` will be one of:\n\n- `InvalidAgentID` — `agent_id` is less than 1\n- `AgentIDNotFound` — no payment agent exists with the given `agent_id`\n- `AgentInactive` — the target payment agent is currently inactive\n- `AgentSelfWithdraw` — the authenticated client is the registered owner of the selected payment agent. A client cannot withdraw through a payment agent account they own\n- `AgentCurrencyUnsupported` — the agent does not support the requested `currency`\n- `VerificationCodeFormatInvalid` — `verification_code` is not a 6-digit numeric string\n- `NoClientWallet` — the authenticated client's account has no wallet to withdraw from\n- `ClientCountryUnsupported` — the client's country of residence is not covered by this agent\n- `WithdrawalAmountMinimum` — `amount` is below the agent's minimum withdrawal limit for this currency\n- `WithdrawalAmountMaximum` — `amount` exceeds the agent's maximum withdrawal limit for this currency\n- `DailyWithdrawalCountLimit` — the client has reached the maximum number of withdrawals allowed in 24 hours\n- `DailyWithdrawalAmountLimit` — this withdrawal would exceed the maximum withdrawal amount allowed in 24 hours\n- `WalletFundsInsufficient` — the client's wallet does not hold enough funds for this withdrawal\n- `InvalidCurrency` — `currency` does not match the required format\n- `InvalidAmount` — `amount` is not a valid decimal string\n- `InvalidRequestIDFormat` — `request_id` does not match the required format (1-128 characters: letters, digits, underscore, hyphen)\n- `RequestIDUsed` — the `request_id` has already been used. It must be unique per withdrawal\n- `InvalidOTP` — the `verification_code` is incorrect. `errors[0].detail.message` contains the error message\n- `OtpValidationRateLimitExceeded` — too many incorrect verification code attempts. `errors[0].detail.message` contains the error message\n- `InputError` — a required field is missing or another input failed validation\n- `ClientWithdrawDisabled` — the calling client is not allowed to withdraw funds through a payment agent\n- `AgentDepositDisabled` — the target agent is not allowed to receive deposits into their own wallet, which is required to complete a withdrawal through them",
             "content": {
               "application/json": {
                 "schema": {
@@ -2472,7 +2735,7 @@
               "type": "string",
               "pattern": "^[\\w\\-]{1,128}$"
             },
-            "description": "The `request_id` previously passed to `POST /payment-agents/v1/withdraw` (1-128 characters: letters, digits, underscore, hyphen). A value that doesn't match any of your withdrawals returns `RequestIDNotFound`, whether or not it matches this format."
+            "description": "The `request_id` previously passed to `POST /payment-agents/v1/withdraw` (1-128 characters: letters, digits, underscore, hyphen). A value that doesn't match the required format returns `InvalidRequestIDFormat`. A well-formed value that doesn't match any of your withdrawals returns `RequestIDNotFound`."
           }
         ],
         "responses": {
@@ -2505,7 +2768,7 @@
             }
           },
           "400": {
-            "description": "Bad request — `RequestIDNotFound`: no withdrawal with this `request_id` is accessible to the authenticated user.",
+            "description": "Bad request — `errors[0].code` will be one of:\n\n- `InvalidRequestIDFormat` — `request_id` does not match the required format (1-128 characters: letters, digits, underscore, hyphen)\n- `RequestIDNotFound` — no withdrawal with this `request_id` is accessible to the authenticated user",
             "content": {
               "application/json": {
                 "schema": {
@@ -3196,21 +3459,32 @@
             "type": "string",
             "description": "Machine-readable error code identifying what went wrong.",
             "enum": [
-              "AgentIDInvalid",
+              "AgentIDNotFound",
               "AgentNotFound",
               "AgentInactive",
               "AgentSelfTransfer",
               "AgentSelfWithdraw",
               "AgentCurrencyUnsupported",
+              "TransferAgentCurrencyUnsupported",
+              "TransferToAgentNotAllowed",
               "InvalidAgentID",
+              "InvalidCurrency",
+              "InvalidCountry",
+              "InvalidAmount",
               "NicknameNotFound",
               "NicknameLookupFailed",
               "NoClientWallet",
               "WalletLookupFailed",
+              "WalletDisabled",
+              "DepositDisabled",
               "ClientCountryUnsupported",
               "ClientIdentityLookupFailed",
               "WithdrawalAmountMinimum",
               "WithdrawalAmountMaximum",
+              "DailyTransferCountLimit",
+              "DailyTransferAmountLimit",
+              "DailyWithdrawalCountLimit",
+              "DailyWithdrawalAmountLimit",
               "WalletFundsInsufficient",
               "TransferFailed",
               "WithdrawalFailed",
@@ -3224,7 +3498,11 @@
               "RequestIDNotFound",
               "InvalidRequestIDFormat",
               "InputError",
-              "InternalError"
+              "InternalError",
+              "ClientWithdrawDisabled",
+              "ClientDepositDisabled",
+              "AgentWithdrawDisabled",
+              "AgentDepositDisabled"
             ]
           },
           "detail": {
@@ -3296,13 +3574,36 @@
           "expires_at"
         ]
       },
+      "ClientSettings": {
+        "type": "object",
+        "description": "The client's current settings for using payment agents. Returned by `GET /clients/me` and `PATCH /clients/me`.",
+        "properties": {
+          "deposit_enabled": {
+            "type": "boolean",
+            "description": "Whether the client can currently receive deposits from payment agents (i.e. be the recipient of a `POST /transfer` call)."
+          },
+          "withdraw_enabled": {
+            "type": "boolean",
+            "description": "Whether the client can currently withdraw funds through a payment agent (`POST /withdraw`)."
+          },
+          "show_real_name": {
+            "type": "boolean",
+            "description": "Whether payment agents see the client's real name on transactions with them. `false` withholds the real name."
+          }
+        },
+        "required": [
+          "deposit_enabled",
+          "withdraw_enabled",
+          "show_real_name"
+        ]
+      },
       "AgentCurrencyItem": {
         "type": "object",
         "description": "Commission rates and withdrawal limits for a single currency supported by a payment agent.",
         "properties": {
           "currency": {
             "type": "string",
-            "description": "ISO 4217 currency code.",
+            "description": "Currency code.",
             "examples": [
               "USD"
             ]
@@ -3384,6 +3685,13 @@
               "Agent One"
             ]
           },
+          "nickname": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Short display handle for the payment agent."
+          },
           "information": {
             "type": [
               "string",
@@ -3427,6 +3735,16 @@
               "type": "string"
             },
             "description": "ISO 3166-1 alpha-2 country codes in lowercase in which this agent operates."
+          },
+          "urls": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Website links for the agent."
           },
           "deposit_commission": {
             "type": [
@@ -3476,6 +3794,10 @@
             "type": "boolean",
             "description": "Whether the agent is allowed to withdraw from the payment agent wallet (only returned when viewing own profile)."
           },
+          "transfer_to_pa": {
+            "type": "boolean",
+            "description": "Whether the agent is permitted to transfer funds to other payment agents (only returned when viewing own profile)."
+          },
           "created_at": {
             "type": "integer",
             "description": "Epoch timestamp (milliseconds) when the agent was registered.",
@@ -3496,6 +3818,13 @@
             "examples": [
               "Agent One"
             ]
+          },
+          "nickname": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Short display handle for the payment agent."
           },
           "information": {
             "type": [
@@ -3542,11 +3871,14 @@
             "description": "ISO 3166-1 alpha-2 country codes in lowercase in which this agent operates."
           },
           "urls": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "type": "string"
             },
-            "description": "Website URLs associated with the agent."
+            "description": "Website URLs associated with the agent. May be null when the agent has no registered URLs."
           },
           "currencies": {
             "type": "array",
@@ -3554,6 +3886,14 @@
               "$ref": "#/components/schemas/AgentCurrencyItem"
             },
             "description": "Commission and limit settings for each currency the agent supports."
+          },
+          "deposit_enabled": {
+            "type": "boolean",
+            "description": "Whether the agent is allowed to perform deposits to their own wallet (only returned when viewing own profile)."
+          },
+          "withdraw_enabled": {
+            "type": "boolean",
+            "description": "Whether the agent is allowed to perform withdrawals from their own wallet (only returned when viewing own profile)."
           }
         },
         "required": [
@@ -3586,7 +3926,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Sorted, deduplicated list of ISO 4217 currency codes supported by at least one active payment agent.",
+            "description": "Sorted, deduplicated list of currency codes supported by at least one active payment agent.",
             "examples": [
               [
                 "EUR",
@@ -3604,7 +3944,7 @@
       },
       "TransactionStatus": {
         "type": "object",
-        "description": "Transaction status returned by transfer, withdrawal, and withdrawal status endpoints.",
+        "description": "Transaction status returned by the withdrawal and withdrawal-status endpoints.",
         "properties": {
           "status": {
             "type": "string",
@@ -3615,7 +3955,7 @@
               "rejected",
               "failed"
             ],
-            "description": "Current status of the transaction. Transactions are initially `\"requested\"`. Transfers complete synchronously (`\"complete\"`). Withdrawals start as `\"pending\"` and eventually move to `\"complete\"`, `\"rejected\"`, or `\"failed\"` if it could not be processed.",
+            "description": "Current status of the transaction. Transactions are initially `\"requested\"`. Withdrawals start as `\"pending\"` and eventually move to `\"complete\"`, `\"rejected\"`, or `\"failed\"` if it could not be processed.",
             "examples": [
               "pending"
             ]
@@ -3625,7 +3965,7 @@
               "integer",
               "null"
             ],
-            "description": "Identifier of the transaction. Will be null when status is `\"requested\"`. If you supplied a `request_id` on a withdrawal, use `GET /payment-agents/v1/withdraw/{request_id}` to track its status independently of `transaction_id`.",
+            "description": "Identifier of the transaction. Will be null when status is `\"requested\"` or `\"failed\"`. If you supplied a `request_id` on a withdrawal, use `GET /payment-agents/v1/withdraw/{request_id}` to track its status independently of `transaction_id`.",
             "examples": [
               123
             ]
@@ -3634,6 +3974,56 @@
         "required": [
           "status",
           "transaction_id"
+        ]
+      },
+      "TransferResult": {
+        "type": "object",
+        "description": "Result of a `POST /payment-agents/v1/transfer` call.",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "dry_run_ok"
+            ],
+            "description": "`\"complete\"` when a real transfer was executed. `\"dry_run_ok\"` when `dry_run: true` was set on the request and only validation was performed.",
+            "examples": [
+              "complete"
+            ]
+          },
+          "transaction_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Identifier of the created transaction. `null` when `status` is `\"dry_run_ok\"`.",
+            "examples": [
+              123
+            ]
+          },
+          "client_real_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Recipient's real name. Returned when the recipient has chosen to share it by setting `show_real_name: true` via `PATCH /payment-agents/v1/clients/me`. `null` if they've kept their name private, or if their name cannot be resolved.",
+            "examples": [
+              "Jane Doe"
+            ]
+          },
+          "client_is_agent": {
+            "type": "boolean",
+            "description": "Whether the recipient is itself another payment agent. `true` for transfers between two payment agents, `false` for a transfer to a regular client.",
+            "examples": [
+              false
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "transaction_id",
+          "client_real_name",
+          "client_is_agent"
         ]
       },
       "ResponseMetadata": {
