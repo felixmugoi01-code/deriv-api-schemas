@@ -2054,7 +2054,7 @@
           "Payment Agent"
         ],
         "summary": "Transfer funds to a client (payment agent deposit)",
-        "description": "Lets an authenticated payment agent deposit funds directly into a client's Deriv wallet, identified by their account nickname (`to_nickname`).\n\nOn success returns a `TransferResult` — `status: \"complete\"` with a `transaction_id` for a real transfer, or `status: \"dry_run_ok\"` with `transaction_id: null` when `dry_run: true` is set on the request. `client_real_name` and `client_is_agent` describe the recipient.\n\nSee the 400 response for the full list of validation and business-rule error codes.",
+        "description": "Lets an authenticated payment agent deposit funds directly into a client's Deriv wallet, identified by their account nickname (`to_nickname`).\n\nOn success returns a `TransferResult` — `status: \"complete\"` with a `transaction_id` for a real transfer, `status: \"pending\"` with `transaction_id: null` when the transfer was accepted but is still being processed, or `status: \"dry_run_ok\"` with `transaction_id: null` when `dry_run: true` is set on the request. Supply a `request_id` on the request to poll a `\"pending\"` transfer via `GET /payment-agents/v1/transfer/{request_id}` — strongly recommended, since a `\"pending\"` transfer without a `request_id` cannot be tracked afterwards (`transaction_id` is `null` in that case). `client_real_name` and `client_is_agent` describe the recipient.\n\nSee the 400 response for the full list of validation and business-rule error codes.",
         "operationId": "d4e5f6a7-b8c9-0123-def0-123456789003",
         "security": [
           {
@@ -2107,7 +2107,7 @@
                       "request_id": {
                         "type": "string",
                         "pattern": "^[\\w\\-]{1,128}$",
-                        "description": "Optional idempotency key, 1-128 characters (letters, digits, underscore, hyphen). Reusing a previous `request_id` returns `RequestIDUsed` instead of creating a duplicate transfer. Unlike withdrawals, a transfer's `request_id` cannot be used to look up status afterwards — transfers complete synchronously in this same response.",
+                        "description": "Idempotency key, 1-128 characters (letters, digits, underscore, hyphen). Optional but strongly recommended: without it, a `status: \"pending\"` response cannot be tracked to a final state (`transaction_id` is `null` in that case). If provided, the transfer status can be retrieved via `GET /payment-agents/v1/transfer/{request_id}`. Reusing a previous `request_id` returns `RequestIDUsed` instead of creating a duplicate transfer.",
                         "examples": [
                           "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
                         ]
@@ -2136,7 +2136,7 @@
         },
         "responses": {
           "200": {
-            "description": "OK — the transfer completed, or was validated in dry-run mode. See `TransferResult`.",
+            "description": "OK — the transfer completed, is still being processed (pending), or was validated in dry-run mode. See `TransferResult`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2251,6 +2251,133 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timeout.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payment-agents/v1/transfer/{request_id}": {
+      "get": {
+        "tags": [
+          "Payment Agent"
+        ],
+        "summary": "Get the status of a transfer",
+        "description": "Returns the current status of a transfer previously initiated via `POST /payment-agents/v1/transfer` with a `request_id`. Both the payment agent who initiated the transfer and the receiving client can query this endpoint. Most transfers return `\"complete\"` in the initial `POST` response and don't need to be polled; when the initial response is `\"pending\"`, the status will progress to `\"complete\"`, `\"rejected\"`, or `\"failed\"`.",
+        "operationId": "b0c1d2e3-f4a5-6789-b0c1-d2e3f4a56789",
+        "security": [
+          {
+            "oauth2": [
+              "payment"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[\\w\\-]{1,128}$"
+            },
+            "description": "The `request_id` previously passed to `POST /payment-agents/v1/transfer` (1-128 characters: letters, digits, underscore, hyphen). A value that doesn't match the required format returns `InvalidRequestIDFormat`. A well-formed value that doesn't match any of your transfers returns `RequestIDNotFound`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — current transfer status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TransactionStatus"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {},
+                      "description": "Empty on success."
+                    },
+                    "metadata": {
+                      "$ref": "#/components/schemas/PAMetadata"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "errors",
+                    "metadata"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — `errors[0].code` will be one of:\n\n- `InvalidRequestIDFormat` — `request_id` does not match the required format (1-128 characters: letters, digits, underscore, hyphen)\n- `RequestIDNotFound` — no transfer with this `request_id` is accessible to the authenticated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                },
+                "examples": {
+                  "RequestIDNotFound": {
+                    "value": {
+                      "data": {},
+                      "errors": [
+                        {
+                          "status": 400,
+                          "code": "RequestIDNotFound"
+                        }
+                      ],
+                      "metadata": {
+                        "endpoint": "/payment-agents/v1/transfer/my-request-id",
+                        "method": "GET",
+                        "timing": 0.019
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — valid token but insufficient scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error — `errors[0].code` will be `InternalError`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PAErrorResponse"
                 }
               }
             }
@@ -3944,7 +4071,7 @@
       },
       "TransactionStatus": {
         "type": "object",
-        "description": "Transaction status returned by the withdrawal and withdrawal-status endpoints.",
+        "description": "Transaction status returned by the withdrawal endpoint and by the transfer/withdrawal status endpoints.",
         "properties": {
           "status": {
             "type": "string",
@@ -3955,7 +4082,7 @@
               "rejected",
               "failed"
             ],
-            "description": "Current status of the transaction. Transactions are initially `\"requested\"`. Withdrawals start as `\"pending\"` and eventually move to `\"complete\"`, `\"rejected\"`, or `\"failed\"` if it could not be processed.",
+            "description": "Current status of the transaction. Withdrawals start as `\"pending\"` and eventually move to `\"complete\"`, `\"rejected\"`, or `\"failed\"` if it could not be processed. Transfers may also return `\"pending\"` when they cannot complete immediately. `\"requested\"` is a transient state that callers are unlikely to see.",
             "examples": [
               "pending"
             ]
@@ -3965,7 +4092,7 @@
               "integer",
               "null"
             ],
-            "description": "Identifier of the transaction. Will be null when status is `\"requested\"` or `\"failed\"`. If you supplied a `request_id` on a withdrawal, use `GET /payment-agents/v1/withdraw/{request_id}` to track its status independently of `transaction_id`.",
+            "description": "Identifier of the transaction. May be null while the transaction is still being processed or if it did not complete successfully. If you supplied a `request_id`, use `GET /payment-agents/v1/withdraw/{request_id}` or `GET /payment-agents/v1/transfer/{request_id}` to track status independently of `transaction_id`.",
             "examples": [
               123
             ]
@@ -3984,9 +4111,10 @@
             "type": "string",
             "enum": [
               "complete",
+              "pending",
               "dry_run_ok"
             ],
-            "description": "`\"complete\"` when a real transfer was executed. `\"dry_run_ok\"` when `dry_run: true` was set on the request and only validation was performed.",
+            "description": "`\"complete\"` when a real transfer was executed. `\"pending\"` when the transfer was accepted but is still being processed — use `GET /payment-agents/v1/transfer/{request_id}` with the supplied `request_id` to poll for the final status. `\"dry_run_ok\"` when `dry_run: true` was set on the request and only validation was performed.",
             "examples": [
               "complete"
             ]
@@ -3996,7 +4124,7 @@
               "integer",
               "null"
             ],
-            "description": "Identifier of the created transaction. `null` when `status` is `\"dry_run_ok\"`.",
+            "description": "Identifier of the created transaction. `null` when `status` is `\"dry_run_ok\"` or `\"pending\"`.",
             "examples": [
               123
             ]
