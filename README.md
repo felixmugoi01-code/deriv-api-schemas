@@ -47,3 +47,6 @@ Browse all releases and changelogs at
 [github.com/deriv-com/deriv-api-schemas/releases](https://github.com/deriv-com/deriv-api-schemas/releases).
 
 Release notes list only the schema files changed in each version.
+
+A full release history is also maintained in [CHANGELOG.md](CHANGELOG.md),
+updated automatically with every schema release.

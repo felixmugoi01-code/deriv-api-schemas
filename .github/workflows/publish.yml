@@ -152,6 +152,55 @@ jobs:
           unzip -q schemas.zip -d schemas/
           echo "Extracted $(find schemas -type f | wc -l | tr -d ' ') files into schemas/."
 
+      - name: Update changelog
+        env:
+          TAG: ${{ github.event.client_payload.tag }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          MARKER='<!-- changelog-entries -->'
+
+          # Safety net: recreate the header if the file or marker ever goes missing.
+          if [ ! -f CHANGELOG.md ] || ! grep -qF "$MARKER" CHANGELOG.md; then
+            printf '# Changelog\n\n%s\n' "$MARKER" > CHANGELOG.md
+          fi
+
+          # Entry body: the validated release notes, minus the redundant
+          # "## Schema Release:" title (the entry heading already names the tag).
+          # Internal source-repo paths are rewritten to the public bundle file
+          # names in case the sender did not already sanitise them — this repo
+          # is public and must not expose the source repo's internal layout.
+          {
+            printf '\n## %s — %s\n\n' "$TAG" "$DATE"
+            sed -e 's/\r$//' \
+                -e '/^## Schema Release:/d' \
+                -e 's|public/schemas/||g' \
+                -e 's|api-docs/rest-api/production-openapi\.json|rest-api-openapi.json|g' \
+                release_notes.md \
+              | awk 'NF {found=1} found'
+            printf '\n[Release](https://github.com/%s/releases/tag/%s)\n' \
+              "$GITHUB_REPOSITORY" "$TAG"
+          } > new_entry.md
+
+          # Header up to and including the marker
+          awk -v marker="$MARKER" '{print} $0 == marker {exit}' \
+            CHANGELOG.md > changelog_head.md
+
+          # Existing entries, minus any previous section for this tag (re-runs
+          # replace the entry instead of duplicating it)
+          awk -v marker="$MARKER" -v tag_heading="## $TAG " '
+            found_marker {
+              if ($0 ~ /^## /) { in_tag = (index($0, tag_heading) == 1) }
+              if (!in_tag) print
+            }
+            $0 == marker {found_marker=1}
+          ' CHANGELOG.md > changelog_tail.md
+
+          cat changelog_head.md new_entry.md changelog_tail.md > CHANGELOG.md
+          rm -f new_entry.md changelog_head.md changelog_tail.md
+
+          echo "Changelog updated for $TAG:"
+          head -20 CHANGELOG.md
+
       - name: Commit and push schema changes
         id: commit
         env:
@@ -159,7 +208,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add schemas/
+          git add schemas/ CHANGELOG.md
           if git diff --cached --quiet; then
             echo "No schema changes to commit."
             echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
