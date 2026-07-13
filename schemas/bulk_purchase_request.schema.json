@@ -29,7 +29,7 @@
         },
         "accounts": {
           "type": "array",
-          "description": "List of end-user token / account pairs to buy the contract for. Duplicate pairs are honoured and result in repeated purchases, matching the legacy behaviour.",
+          "description": "List of end-user token / account pairs to buy the contract for. Duplicate pairs are honoured and result in repeated purchases.",
           "minItems": 1,
           "maxItems": 100,
           "items": {

@@ -6,6 +6,16 @@ Newest first. Entries are added automatically by the publish workflow.
 
 <!-- changelog-entries -->
 
+## production_v20260713_0 — 2026-07-13
+
+_Schema changes since `production_v20260709_1`_
+
+### Changed schema files
+
+- `bulk_purchase_request.schema.json`
+
+[Release](https://github.com/deriv-com/deriv-api-schemas/releases/tag/production_v20260713_0)
+
 ## production_v20260709_1 — 2026-07-09
 
 _Schema changes since `production_v20260709_0`_
