@@ -29,6 +29,10 @@
     {
       "name": "Identity",
       "description": "Endpoints for accessing identity data for the authenticated user."
+    },
+    {
+      "name": "Wallets",
+      "description": "Endpoints for accessing wallet balances and transactions for the authenticated client."
     }
   ],
   "paths": {
@@ -3061,6 +3065,345 @@
           }
         }
       }
+    },
+    "/wallet/v1/wallets": {
+      "get": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "List wallets for the authenticated client",
+        "description": "Returns the list of wallets for the authenticated client, with balances in each wallet's native currency. When `conversion_currency` is supplied, each balance is additionally returned converted to that currency. `start_date_time` / `end_date_time` bound the \"balance as of\" window.",
+        "operationId": "get-wallets",
+        "security": [
+          {
+            "oauth2": [
+              "payment"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversion_currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$",
+              "examples": [
+                "USD"
+              ]
+            },
+            "description": "3-letter ISO currency code. When supplied, balance amounts are additionally returned converted to this currency."
+          },
+          {
+            "name": "start_date_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              ]
+            },
+            "description": "ISO 8601 timestamp or epoch seconds. Lower bound of the \"balance as of\" window."
+          },
+          {
+            "name": "end_date_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              ]
+            },
+            "description": "ISO 8601 timestamp or epoch seconds. Upper bound of the \"balance as of\" window."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — wallets for the authenticated client, with balances in native currencies and optional conversion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — `errors[0].code` will be `BadRequest`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — valid token but insufficient scope (`payment` scope required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found — `errors[0].code` will be `NotFound`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error — `errors[0].code` will be `InternalServerError`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable — request rejected by the gateway circuit breaker.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timeout — the service did not respond in time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallet/v1/transactions/{wallet_type}": {
+      "get": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "List transactions for one of the authenticated client's wallets",
+        "description": "Returns a cursor-paginated list of transactions for the wallet identified by `wallet_type` (resolved server-side against `X-Client-ID`). Filterable by `request_id`, `transaction_currency`, and date range.\n\nEach row carries a `channel` (`cashier` or `payment_agent`) indicating how the money moved and a `category` (`deposit` or `withdrawal`) computed relative to the caller.",
+        "operationId": "get-wallet-transactions",
+        "security": [
+          {
+            "oauth2": [
+              "payment"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "wallet_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WalletType"
+            },
+            "description": "Wallet type to return transactions for. Resolved server-side against the caller's `X-Client-ID`."
+          },
+          {
+            "name": "request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by the transaction's `request_id`."
+          },
+          {
+            "name": "transaction_currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$",
+              "examples": [
+                "USD"
+              ]
+            },
+            "description": "3-letter ISO currency code. Restricts the response to transactions in this currency."
+          },
+          {
+            "name": "start_date_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              ]
+            },
+            "description": "ISO 8601 timestamp or epoch seconds. Lower bound of the transaction window."
+          },
+          {
+            "name": "end_date_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              ]
+            },
+            "description": "ISO 8601 timestamp or epoch seconds. Upper bound of the transaction window."
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 1000,
+              "default": 100
+            },
+            "description": "Page size. Between 100 and 1000. Defaults to 100."
+          },
+          {
+            "name": "page_cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque cursor returned in `links.next` / `links.prev`. When present, other filters are ignored — the cursor encodes them."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — cursor-paginated transactions for the requested wallet type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletTransactionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — `errors[0].code` will be `BadRequest`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — valid token but insufficient scope (`payment` scope required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found — `errors[0].code` will be `NotFound`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error — `errors[0].code` will be `InternalServerError`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable — request rejected by the gateway circuit breaker.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timeout — the service did not respond in time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4257,6 +4600,403 @@
         "required": [
           "external_reference_id",
           "nickname"
+        ]
+      },
+      "WalletCurrencyBalance": {
+        "type": "object",
+        "description": "Balance figures for a single currency within a wallet. All amounts are decimal strings to preserve precision.",
+        "properties": {
+          "balance": {
+            "type": "string",
+            "description": "Current balance in this currency.",
+            "examples": [
+              "1993.2"
+            ]
+          },
+          "input": {
+            "type": "string",
+            "description": "Cumulative amount credited to the wallet in this currency.",
+            "examples": [
+              "2283.2"
+            ]
+          },
+          "output": {
+            "type": "string",
+            "description": "Cumulative amount debited from the wallet in this currency.",
+            "examples": [
+              "290"
+            ]
+          }
+        },
+        "required": [
+          "balance",
+          "input",
+          "output"
+        ]
+      },
+      "Wallet": {
+        "type": "object",
+        "description": "A single wallet belonging to the authenticated client.",
+        "properties": {
+          "wallet_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Wallet identifier.",
+            "examples": [
+              "942a2f2d-1f33-4559-994e-42b403033bc6"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "Wallet type.",
+            "examples": [
+              "main"
+            ]
+          },
+          "balances": {
+            "type": "object",
+            "description": "Balances keyed by 3-letter ISO currency code.",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WalletCurrencyBalance"
+            }
+          },
+          "total_balance": {
+            "$ref": "#/components/schemas/WalletTotalBalance",
+            "description": "Only present when `conversion_currency` is set on the request. Shows the wallet's balances summed and converted into the requested currency."
+          }
+        },
+        "required": [
+          "wallet_id",
+          "type",
+          "balances"
+        ]
+      },
+      "WalletTotalBalance": {
+        "type": "object",
+        "description": "Aggregate balances for a single wallet converted into the currency requested via `conversion_currency`. Amounts are approximate because FX rates fluctuate.",
+        "properties": {
+          "converted_to": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "description": "Currency the totals were converted into — echoes the request's `conversion_currency`.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "approximate_total_balance": {
+            "type": "string",
+            "description": "Sum of all currency balances converted into `converted_to`.",
+            "examples": [
+              "345.57598013272"
+            ]
+          },
+          "approximate_total_input": {
+            "type": "string",
+            "description": "Sum of all currency inputs converted into `converted_to`.",
+            "examples": [
+              "382.57598013272"
+            ]
+          },
+          "approximate_total_output": {
+            "type": "string",
+            "description": "Sum of all currency outputs converted into `converted_to`.",
+            "examples": [
+              "37"
+            ]
+          }
+        },
+        "required": [
+          "converted_to",
+          "approximate_total_balance",
+          "approximate_total_input",
+          "approximate_total_output"
+        ]
+      },
+      "WalletErrorItem": {
+        "type": "object",
+        "description": "A single error entry.",
+        "properties": {
+          "status": {
+            "type": "integer",
+            "description": "HTTP-equivalent status code for this error."
+          },
+          "code": {
+            "type": "string",
+            "description": "Machine-readable error code identifying what went wrong.",
+            "enum": [
+              "BadRequest",
+              "Unauthorized",
+              "NotFound",
+              "InternalServerError"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable description of the error condition."
+          }
+        },
+        "required": [
+          "status",
+          "code"
+        ]
+      },
+      "WalletErrorResponse": {
+        "type": "object",
+        "description": "Standard error envelope. `errors` contains one or more entries describing what went wrong.",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WalletErrorItem"
+            },
+            "description": "One or more error entries."
+          }
+        },
+        "required": [
+          "errors"
+        ]
+      },
+      "WalletListResponse": {
+        "type": "object",
+        "description": "Successful wallet list response for the authenticated client.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "One entry per wallet owned by the authenticated client.",
+            "items": {
+              "$ref": "#/components/schemas/Wallet"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "WalletType": {
+        "type": "string",
+        "description": "Wallet type identifier.",
+        "enum": [
+          "main",
+          "p2p",
+          "partner",
+          "payment_agent"
+        ]
+      },
+      "WalletTransactionMetadata": {
+        "type": "object",
+        "description": "Transaction metadata. `source_*` and `destination_*` fields are populated per the channel/category matrix — see endpoint documentation. Any metadata field whose value would reference internal cashier plumbing is dropped from the response entirely (the field is absent rather than empty).",
+        "properties": {
+          "transaction_status": {
+            "type": "string",
+            "description": "Transaction settlement status.",
+            "examples": [
+              "complete",
+              "pending"
+            ]
+          },
+          "transaction_gross_amount": {
+            "type": "string",
+            "description": "Gross amount as a decimal string.",
+            "examples": [
+              "10"
+            ]
+          },
+          "transaction_net_amount": {
+            "type": "string",
+            "description": "Net amount as a decimal string.",
+            "examples": [
+              "10"
+            ]
+          },
+          "transaction_currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "description": "3-letter ISO currency code the amounts are denominated in.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "source_client_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Owning client of the source wallet. Absent for cashier deposits (the source is the system)."
+          },
+          "source_wallet_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletType"
+              }
+            ],
+            "description": "Wallet type on the source side. Absent for cashier deposits."
+          },
+          "destination_client_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Owning client of the destination wallet. Absent for cashier withdrawals."
+          },
+          "destination_wallet_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletType"
+              }
+            ],
+            "description": "Wallet type on the destination side. Absent for cashier withdrawals."
+          }
+        },
+        "required": [
+          "transaction_status",
+          "transaction_gross_amount",
+          "transaction_net_amount",
+          "transaction_currency"
+        ]
+      },
+      "WalletTransaction": {
+        "type": "object",
+        "description": "A single wallet transaction. `category` is computed relative to the caller (deposit / withdrawal), and `channel` indicates how the money moved (cashier / payment agent).",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Idempotency / correlation ID.",
+            "examples": [
+              "ef4b3abd-c05e-42ea-a3f2-021ec69e1580"
+            ]
+          },
+          "transaction_id": {
+            "type": "integer",
+            "description": "Wallet-service assigned identifier.",
+            "examples": [
+              277121
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 UTC timestamp with microseconds.",
+            "examples": [
+              "2026-07-10T07:34:29.688372Z"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "description": "Direction of the transaction relative to the caller.",
+            "enum": [
+              "deposit",
+              "withdrawal"
+            ]
+          },
+          "channel": {
+            "type": "string",
+            "description": "How the money moved.",
+            "enum": [
+              "cashier",
+              "payment_agent"
+            ]
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/WalletTransactionMetadata"
+          }
+        },
+        "required": [
+          "request_id",
+          "transaction_id",
+          "timestamp",
+          "category",
+          "channel",
+          "metadata"
+        ]
+      },
+      "WalletTransactionsLinks": {
+        "type": "object",
+        "description": "Cursor-based pagination links. Each link contains only `page_cursor` — follow it verbatim to fetch the next / previous page. `null` when the corresponding page does not exist (e.g. `next` on the last page).",
+        "properties": {
+          "self": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL of the current page.",
+            "examples": [
+              "/wallet/v1/transactions/main?page_cursor=…"
+            ]
+          },
+          "next": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL of the next page, or `null` when there is no next page."
+          },
+          "prev": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL of the previous page, or `null` when there is no previous page."
+          },
+          "first": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL of the first page."
+          }
+        },
+        "required": [
+          "self",
+          "next",
+          "prev",
+          "first"
+        ]
+      },
+      "WalletTransactionsData": {
+        "type": "object",
+        "description": "Envelope for the transactions list plus the resolved date range for the current page.",
+        "properties": {
+          "start_date_time": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Lower bound of the returned range. `null` when unbounded."
+          },
+          "end_date_time": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Upper bound of the returned range. `null` when unbounded."
+          },
+          "transactions": {
+            "type": "array",
+            "description": "Transactions on this page, newest first.",
+            "items": {
+              "$ref": "#/components/schemas/WalletTransaction"
+            }
+          }
+        },
+        "required": [
+          "start_date_time",
+          "end_date_time",
+          "transactions"
+        ]
+      },
+      "WalletTransactionsResponse": {
+        "type": "object",
+        "description": "Successful transactions response for the requested wallet type.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WalletTransactionsData"
+          },
+          "links": {
+            "$ref": "#/components/schemas/WalletTransactionsLinks"
+          }
+        },
+        "required": [
+          "data",
+          "links"
         ]
       }
     }

@@ -6,6 +6,20 @@ Newest first. Entries are added automatically by the publish workflow.
 
 <!-- changelog-entries -->
 
+## production_v20260714_0 — 2026-07-14
+
+_Schema changes since `production_v20260713_0`_
+
+### Changed schema files
+
+- `rest-api-openapi.json`
+- `wallet_list_request.schema.json`
+- `wallet_list_response.schema.json`
+- `wallet_transactions_request.schema.json`
+- `wallet_transactions_response.schema.json`
+
+[Release](https://github.com/deriv-com/deriv-api-schemas/releases/tag/production_v20260714_0)
+
 ## production_v20260713_0 — 2026-07-13
 
 _Schema changes since `production_v20260709_1`_
