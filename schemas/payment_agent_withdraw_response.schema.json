@@ -9,8 +9,8 @@
       "properties": {
         "status": {
           "type": "string",
-          "enum": ["pending", "complete", "rejected", "failed"],
-          "description": "Current status of the transaction. Withdrawals start as `pending`.",
+          "enum": ["requested", "pending", "complete", "rejected", "failed"],
+          "description": "Current status of the transaction. Withdrawals start as `pending` and eventually move to `complete`, `rejected`, or `failed`. `requested` is a transient state that callers are unlikely to see.",
           "example": "pending"
         },
         "transaction_id": {
@@ -20,6 +20,11 @@
         }
       },
       "required": ["status", "transaction_id"]
+    },
+    "errors": {
+      "type": "array",
+      "items": {},
+      "description": "Empty on success."
     },
     "metadata": {
       "type": "object",
@@ -39,5 +44,5 @@
       "required": ["endpoint", "method", "timing"]
     }
   },
-  "required": ["data", "metadata"]
+  "required": ["data", "errors", "metadata"]
 }

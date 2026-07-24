@@ -22,6 +22,11 @@
       },
       "required": ["available_countries", "available_currencies"]
     },
+    "errors": {
+      "type": "array",
+      "items": {},
+      "description": "Empty on success."
+    },
     "metadata": {
       "type": "object",
       "description": "Request metadata included in every response.",
@@ -40,5 +45,5 @@
       "required": ["endpoint", "method", "timing"]
     }
   },
-  "required": ["data", "metadata"]
+  "required": ["data", "errors", "metadata"]
 }

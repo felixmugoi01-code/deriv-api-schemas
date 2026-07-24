@@ -10,13 +10,13 @@
       "properties": {
         "status": {
           "type": "string",
-          "enum": ["complete", "dry_run_ok"],
-          "description": "`complete` when a real transfer was executed. `dry_run_ok` when `dry_run` was `true` and only validation was performed.",
+          "enum": ["complete", "pending", "dry_run_ok"],
+          "description": "`complete` when a real transfer was executed. `pending` when the transfer was accepted but is still being processed — use `GET /payment-agents/v1/transfer/{request_id}` with the supplied `request_id` to poll for the final status. `dry_run_ok` when `dry_run` was `true` and only validation was performed.",
           "example": "complete"
         },
         "transaction_id": {
           "type": ["integer", "null"],
-          "description": "Identifier of the created transaction. `null` when `status` is `dry_run_ok`.",
+          "description": "Identifier of the created transaction. `null` when `status` is `dry_run_ok` or `pending`.",
           "example": 123
         },
         "client_real_name": {
@@ -31,6 +31,11 @@
         }
       },
       "required": ["status", "transaction_id", "client_real_name", "client_is_agent"]
+    },
+    "errors": {
+      "type": "array",
+      "items": {},
+      "description": "Empty on success."
     },
     "metadata": {
       "type": "object",
@@ -50,5 +55,5 @@
       "required": ["endpoint", "method", "timing"]
     }
   },
-  "required": ["data", "metadata"]
+  "required": ["data", "errors", "metadata"]
 }

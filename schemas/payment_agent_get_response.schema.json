@@ -12,19 +12,31 @@
           "description": "Unique identifier of the payment agent.",
           "example": 42
         },
+        "cashier_withdraw": {
+          "type": "boolean",
+          "description": "Whether the agent is allowed to withdraw from the payment agent wallet (only returned when viewing own profile)."
+        },
+        "transfer_to_pa": {
+          "type": "boolean",
+          "description": "Whether the agent is permitted to transfer funds to other payment agents (only returned when viewing own profile)."
+        },
         "created_at": {
           "type": "integer",
           "description": "Epoch timestamp (milliseconds) when the agent was registered.",
           "example": 1717000000000
         },
         "is_listed": {
-          "type": ["boolean", "null"],
+          "type": "boolean",
           "description": "Whether the agent appears in the public agent directory."
         },
         "name": {
           "type": ["string", "null"],
           "description": "Display name of the payment agent.",
           "example": "Agent One"
+        },
+        "nickname": {
+          "type": ["string", "null"],
+          "description": "Short display handle for the payment agent."
         },
         "information": {
           "type": ["string", "null"],
@@ -50,9 +62,9 @@
           "description": "ISO 3166-1 alpha-2 country codes in lowercase in which this agent operates."
         },
         "urls": {
-          "type": "array",
+          "type": ["array", "null"],
           "items": { "type": "string" },
-          "description": "Website URLs associated with the agent."
+          "description": "Website URLs associated with the agent. May be null when the agent has no registered URLs."
         },
         "currencies": {
           "type": "array",
@@ -84,9 +96,22 @@
             },
             "required": ["currency"]
           }
+        },
+        "deposit_enabled": {
+          "type": "boolean",
+          "description": "Whether the agent is allowed to perform deposits to their own wallet (only returned when viewing own profile)."
+        },
+        "withdraw_enabled": {
+          "type": "boolean",
+          "description": "Whether the agent is allowed to perform withdrawals from their own wallet (only returned when viewing own profile)."
         }
       },
       "required": ["id", "urls", "currencies"]
+    },
+    "errors": {
+      "type": "array",
+      "items": {},
+      "description": "Empty on success."
     },
     "metadata": {
       "type": "object",
@@ -106,5 +131,5 @@
       "required": ["endpoint", "method", "timing"]
     }
   },
-  "required": ["data", "metadata"]
+  "required": ["data", "errors", "metadata"]
 }

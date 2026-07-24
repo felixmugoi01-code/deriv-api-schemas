@@ -3,12 +3,17 @@
   "title": "Legacy Statement (request)",
   "description": "Query parameters for GET /trading/v1/options/legacy/statement. Returns the historical transaction statement from the legacy options platform for the default account of the supplied loginid.",
   "type": "object",
-  "required": ["Deriv-App-ID", "loginid"],
+  "required": ["Deriv-App-ID", "Authorization", "loginid"],
   "properties": {
     "Deriv-App-ID": {
       "type": "string",
       "description": "Application identifier. Passed as a request header.",
       "example": "YOUR_APP_ID"
+    },
+    "Authorization": {
+      "type": "string",
+      "description": "Bearer token for authentication. Passed as a request header.",
+      "example": "Bearer YOUR_AUTH_TOKEN"
     },
     "loginid": {
       "type": "string",

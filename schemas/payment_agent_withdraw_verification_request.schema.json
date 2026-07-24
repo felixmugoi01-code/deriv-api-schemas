@@ -33,16 +33,19 @@
           "properties": {
             "agent_id": {
               "type": "integer",
-              "description": "Unique identifier of the payment agent to withdraw through.",
+              "minimum": 1,
+              "description": "Unique identifier of the payment agent to withdraw through, as returned by `GET /payment-agents/v1/agents`. Values below 1 are rejected with `InvalidAgentID`.",
               "example": 42
             },
             "amount": {
               "type": "string",
+              "pattern": "^(?:0|[1-9]\\d{0,13})(?:\\.\\d{1,18})?$",
               "description": "Intended withdrawal amount as a decimal string.",
               "example": "50.00"
             },
             "currency": {
               "type": "string",
+              "pattern": "^[A-Z_]{1,18}$",
               "description": "Currency code for the intended withdrawal.",
               "example": "USD"
             }

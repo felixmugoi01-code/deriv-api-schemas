@@ -22,6 +22,10 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+              "auto_run_id": {
+                "description": "Identifier of the automated run that purchased this contract",
+                "type": "string"
+              },
               "buy_price": {
                 "description": "Buy price",
                 "type": "number"

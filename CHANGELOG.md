@@ -6,6 +6,37 @@ Newest first. Entries are added automatically by the publish workflow.
 
 <!-- changelog-entries -->
 
+## production_v20260724_0 — 2026-07-24
+
+_Schema changes since `production_v20260722_0`_
+
+### Changed schema files
+
+- `auto_list_response.schema.json`
+- `legacy_accounts_request.schema.json`
+- `legacy_accounts_response.schema.json`
+- `legacy_migration_status_request.schema.json`
+- `legacy_statement_request.schema.json`
+- `payment_agent_get_response.schema.json`
+- `payment_agent_list_response.schema.json`
+- `payment_agent_statistics_response.schema.json`
+- `payment_agent_transfer_request.schema.json`
+- `payment_agent_transfer_response.schema.json`
+- `payment_agent_withdraw_request.schema.json`
+- `payment_agent_withdraw_response.schema.json`
+- `payment_agent_withdraw_status_request.schema.json`
+- `payment_agent_withdraw_status_response.schema.json`
+- `payment_agent_withdraw_verification_request.schema.json`
+- `payment_agent_withdraw_verification_response.schema.json`
+- `portfolio_response.schema.json`
+- `profit_table_response.schema.json`
+- `proposal_open_contract_response.schema.json`
+- `reset_demo_balance_response.schema.json`
+- `statement_response.schema.json`
+- `ticks_history_request.schema.json`
+
+[Release](https://github.com/deriv-com/deriv-api-schemas/releases/tag/production_v20260724_0)
+
 ## production_v20260714_0 — 2026-07-14
 
 _Schema changes since `production_v20260713_0`_

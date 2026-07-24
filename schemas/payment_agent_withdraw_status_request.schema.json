@@ -24,7 +24,8 @@
       "properties": {
         "request_id": {
           "type": "string",
-          "description": "The `request_id` previously passed to the withdraw endpoint (1-128 characters: letters, digits, underscore, hyphen). A value that doesn't match any of your withdrawals returns `RequestIDNotFound`.",
+          "pattern": "^[\\w\\-]{1,128}$",
+          "description": "The `request_id` previously passed to the withdraw endpoint (1-128 characters: letters, digits, underscore, hyphen). A malformed value returns `InvalidRequestIDFormat`; a well-formed value that doesn't match any of your withdrawals returns `RequestIDNotFound`.",
           "example": "7842b85d-6979-4f9f-a0c7-cf2e8d122739"
         }
       },

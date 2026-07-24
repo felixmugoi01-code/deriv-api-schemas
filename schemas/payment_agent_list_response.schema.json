@@ -22,13 +22,17 @@
             "example": 1717000000000
           },
           "is_listed": {
-            "type": ["boolean", "null"],
+            "type": "boolean",
             "description": "Whether the agent appears in the public agent directory. `false` indicates this agent was included because you've previously received a transfer from them, not because they're publicly listed."
           },
           "name": {
             "type": ["string", "null"],
             "description": "Display name of the payment agent.",
             "example": "Agent One"
+          },
+          "nickname": {
+            "type": ["string", "null"],
+            "description": "Short display handle for the payment agent."
           },
           "information": {
             "type": ["string", "null"],
@@ -53,6 +57,11 @@
             "items": { "type": "string" },
             "description": "ISO 3166-1 alpha-2 country codes in lowercase in which this agent operates."
           },
+          "urls": {
+            "type": ["array", "null"],
+            "items": { "type": "string" },
+            "description": "Website links for the agent."
+          },
           "deposit_commission": {
             "type": ["number", "null"],
             "description": "Commission rate for deposits in the queried currency."
@@ -73,6 +82,11 @@
         "required": ["id"]
       }
     },
+    "errors": {
+      "type": "array",
+      "items": {},
+      "description": "Empty on success."
+    },
     "metadata": {
       "type": "object",
       "description": "Request metadata included in every response.",
@@ -91,5 +105,5 @@
       "required": ["endpoint", "method", "timing"]
     }
   },
-  "required": ["data", "metadata"]
+  "required": ["data", "errors", "metadata"]
 }

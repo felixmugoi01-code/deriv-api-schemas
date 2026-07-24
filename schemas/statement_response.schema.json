@@ -25,12 +25,16 @@
               "action_type": {
                 "description": "It is the type of action.",
                 "type": "string",
-                "enum": ["buy", "sell", "deposit", "withdrawal"]
+                "enum": ["buy", "sell", "deposit", "withdrawal", "adjustment"]
               },
               "amount": {
                 "description": "It is the amount of transaction.",
                 "type": "number",
                 "examples": [-83.23]
+              },
+              "app_id": {
+                "description": "ID of the application where this contract was purchased.",
+                "type": ["null", "string"]
               },
               "balance_after": {
                 "description": "It is the remaining balance.",

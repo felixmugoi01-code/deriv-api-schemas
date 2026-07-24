@@ -12,6 +12,7 @@
         "type": "array",
         "items": {
           "type": "object",
+          "required": ["account_id", "currency"],
           "properties": {
             "account_id": {
               "type": "integer",
