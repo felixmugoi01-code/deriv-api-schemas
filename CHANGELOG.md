@@ -6,6 +6,23 @@ Newest first. Entries are added automatically by the publish workflow.
 
 <!-- changelog-entries -->
 
+## production_v20260804_0 — 2026-08-04
+
+_Schema changes since `production_v20260730_0`_
+
+### Changed schema files
+
+- `account_nickname_request.schema.json`
+- `markup_statistics_response.schema.json`
+- `ws_demo_request.schema.json`
+- `ws_demo_response.schema.json`
+- `ws_public_request.schema.json`
+- `ws_public_response.schema.json`
+- `ws_real_request.schema.json`
+- `ws_real_response.schema.json`
+
+[Release](https://github.com/deriv-com/deriv-api-schemas/releases/tag/production_v20260804_0)
+
 ## production_v20260724_0 — 2026-07-24
 
 _Schema changes since `production_v20260722_0`_
