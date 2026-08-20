@@ -3216,6 +3216,133 @@
         }
       }
     },
+    "/wallet/v1/exchange-rate": {
+      "get": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Get an exchange-rate quote between two currencies",
+        "description": "Returns a quote for converting between two currencies. The quote carries the exchange rate and a `rate_token`; pass both to `POST /wallet/v1/transfers/exchange` (or a cross-currency `POST /wallet/v1/transfers/platforms` request) to execute a transfer at the quoted rate.",
+        "operationId": "get-exchange-rate",
+        "security": [
+          {
+            "oauth2": [
+              "payment"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "source_currency",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z0-9_]{1,18}$",
+              "examples": [
+                "USD"
+              ]
+            },
+            "description": "Currency to convert from."
+          },
+          {
+            "name": "destination_currency",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z0-9_]{1,18}$",
+              "examples": [
+                "BTC"
+              ]
+            },
+            "description": "Currency to convert to."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — quote for the requested currency pair.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExchangeRateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — `errors[0].code` will be `ValidationError` (missing or invalid `source_currency` / `destination_currency`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — valid token but insufficient scope (`payment` scope required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error — e.g. no rate available for the requested pair.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable — request rejected by the gateway circuit breaker.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timeout — the service did not respond in time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/wallet/v1/transactions/{wallet_type}": {
       "get": {
         "tags": [
@@ -3398,6 +3525,527 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WalletErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallet/v1/transfers": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Transfer funds between two of the authenticated client's wallets",
+        "description": "Executes a same-currency transfer between two wallets owned by the authenticated client. The transfer is validated against all business rules (transfer restrictions, amount and balance limits, minimum transfer value) and any applicable fee is deducted before execution — validate first with `POST /wallet/v1/transfers/validate` to preview the fee and net amount.\n\n`request_id` is the idempotency key: reusing a previously submitted `request_id` does not create a duplicate transfer. For cross-currency transfers use `POST /wallet/v1/transfers/exchange`; for transfers to or from trading platforms use `POST /wallet/v1/transfers/platforms`.",
+        "operationId": "create-transfer",
+        "security": [
+          {
+            "oauth2": [
+              "payment"
+            ]
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferRequest"
+              },
+              "examples": {
+                "same_currency": {
+                  "summary": "Same-currency wallet transfer",
+                  "value": {
+                    "currency": "USD",
+                    "amount": "100.00",
+                    "source_wallet_id": "942a2f2d-1f33-4559-994e-42b403033bc6",
+                    "destination_wallet_id": "ef4b3abd-c05e-42ea-a3f2-021ec69e1580",
+                    "request_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                    "description": "Move funds to P2P wallet"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK — transfer executed. `data` carries the executed transfer details and echoes the request's `request_id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferExecuteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — `errors[0].code` is `ValidationError` for malformed input (the offending field is named in `field`) or `BadRequest` for a business-rule rejection (e.g. transfer restricted for the client, insufficient balance, amount below the minimum).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — valid token but insufficient scope (`payment` scope required), one of the wallets does not belong to the authenticated client, or transfers are restricted for the client.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error — the transfer could not be completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable — request rejected by the gateway circuit breaker.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timeout — the service did not respond in time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallet/v1/transfers/exchange": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Transfer funds between wallets in different currencies",
+        "description": "Executes a cross-currency transfer between two wallets owned by the authenticated client, converting `amount` from `source_currency` to `destination_currency` at the quoted `exchange_rate`. The transfer is validated against all business rules and any applicable currency-exchange fee is deducted before execution — validate first with `POST /wallet/v1/transfers/validate` to preview the fee and estimated destination amount.\n\n`exchange_rate` and `rate_token` come from an exchange-rate quote obtained beforehand; `rate_token` attests that the rate being executed is the one that was quoted. `request_id` is the idempotency key: reusing a previously submitted `request_id` does not create a duplicate transfer.",
+        "operationId": "create-exchange-transfer",
+        "security": [
+          {
+            "oauth2": [
+              "payment"
+            ]
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExchangeTransferRequest"
+              },
+              "examples": {
+                "cross_currency": {
+                  "summary": "USD to BTC transfer",
+                  "value": {
+                    "source_wallet_id": "942a2f2d-1f33-4559-994e-42b403033bc6",
+                    "source_currency": "USD",
+                    "amount": "100.00",
+                    "destination_wallet_id": "ef4b3abd-c05e-42ea-a3f2-021ec69e1580",
+                    "destination_currency": "BTC",
+                    "exchange_rate": "0.0000095238",
+                    "rate_token": "eyJhbGciOi...",
+                    "request_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                    "description": "Convert USD to BTC"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK — transfer executed. `data` carries the executed transfer details and echoes the request's `request_id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferExecuteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — `errors[0].code` is `ValidationError` for malformed input, `BadRequest` for a business-rule rejection, or `DailyLimitError` / `MinimumAmountError` / `TransactionLimitError` when a transfer limit is breached.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — valid token but insufficient scope (`payment` scope required), one of the wallets does not belong to the authenticated client, or transfers are restricted for the client.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error — the transfer could not be completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable — request rejected by the gateway circuit breaker.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timeout — the service did not respond in time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallet/v1/transfers/platforms": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Transfer funds between a wallet and a trading platform account",
+        "description": "Executes a transfer between one of the authenticated client's wallets and one of their trading platform accounts. `direction` controls the flow: `from_wallet` debits the wallet to fund the platform account, `to_wallet` debits the platform account to fund the wallet. `currency` is the platform account's currency and must match it.\n\nThe transfer is validated against all business rules and any applicable fee is deducted before execution — validate first with `POST /wallet/v1/transfers/validate` to preview the fee and net amount.\n\nCross-currency platform transfers are supported by additionally sending `wallet_currency` (the wallet's currency) together with `exchange_rate` and `rate_token` from an exchange-rate quote. `request_id` is the idempotency key: reusing a previously submitted `request_id` is rejected with `DuplicateRequestID`.",
+        "operationId": "create-platform-transfer",
+        "security": [
+          {
+            "oauth2": [
+              "payment"
+            ]
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformTransferRequest"
+              },
+              "examples": {
+                "from_wallet": {
+                  "summary": "Fund an MT5 account from a wallet",
+                  "value": {
+                    "wallet_id": "942a2f2d-1f33-4559-994e-42b403033bc6",
+                    "amount": "100.00",
+                    "currency": "USD",
+                    "direction": "from_wallet",
+                    "platform_name": "mt5",
+                    "platform_account_id": "MTR9000001",
+                    "request_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                    "description": "Fund MT5 account"
+                  }
+                },
+                "to_wallet": {
+                  "summary": "Withdraw from a platform account to a wallet",
+                  "value": {
+                    "wallet_id": "942a2f2d-1f33-4559-994e-42b403033bc6",
+                    "amount": "50.00",
+                    "currency": "USD",
+                    "direction": "to_wallet",
+                    "platform_name": "ctrader",
+                    "platform_account_id": "CTR9000002",
+                    "request_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK — transfer executed. `data.status` carries the transfer status details and `data.request_id` echoes the request's `request_id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTransferExecuteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — `errors[0].code` is `ValidationError` for malformed input, `BadRequest` for a business-rule rejection, `WalletFundsInsufficient` when the wallet balance cannot cover the transfer, or `DuplicateRequestID` when `request_id` has already been used.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — valid token but insufficient scope (`payment` scope required), the wallet or platform account does not belong to the authenticated client, the platform account currency does not match `currency`, or transfers are restricted for the client.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error — the transfer could not be completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable — request rejected by the gateway circuit breaker.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timeout — the service did not respond in time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallet/v1/transfers/validate": {
+      "post": {
+        "tags": [
+          "Wallets"
+        ],
+        "summary": "Validate a transfer between the authenticated client's accounts",
+        "description": "Performs a dry-run validation of a transfer between two of the authenticated client's accounts without moving any funds. The transfer is checked against all business rules — transfer-type compatibility, client and country restrictions, amount and balance limits, and the minimum transfer value — and, when valid, the response carries the fee that would be charged and the estimated amount the destination would receive.\n\nFor cross-currency transfers (`source_currency` differs from `destination_currency`), `rate` is required. A `200` response means the transfer is valid as of now; executing it is a separate operation.",
+        "operationId": "validate-transfer",
+        "security": [
+          {
+            "oauth2": [
+              "payment"
+            ]
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferValidationRequest"
+              },
+              "examples": {
+                "same_currency": {
+                  "summary": "Same-currency transfer",
+                  "value": {
+                    "source_type": "main",
+                    "destination_type": "p2p",
+                    "source_id": "942a2f2d-1f33-4559-994e-42b403033bc6",
+                    "destination_id": "ef4b3abd-c05e-42ea-a3f2-021ec69e1580",
+                    "amount": "100.00",
+                    "balance": "250.00",
+                    "source_currency": "USD",
+                    "destination_currency": "USD"
+                  }
+                },
+                "cross_currency": {
+                  "summary": "Cross-currency transfer",
+                  "value": {
+                    "source_type": "main",
+                    "destination_type": "main",
+                    "source_id": "942a2f2d-1f33-4559-994e-42b403033bc6",
+                    "destination_id": "ef4b3abd-c05e-42ea-a3f2-021ec69e1580",
+                    "amount": "100.00",
+                    "balance": "250.00",
+                    "source_currency": "USD",
+                    "destination_currency": "BTC",
+                    "rate": "0.0000095238"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK — the transfer is valid. `data.details` carries the fee and amount breakdown.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — `errors[0].code` is `ValidationError` for malformed input (the offending field is named in `field`), `BadRequest` for a business-rule rejection (e.g. transfer type not allowed, transfer restricted for the client or their country of residence, cross-currency not allowed, amount below the minimum), or `CurrencyNotAllowed` when the destination payment agent does not accept the currency.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — valid token but insufficient scope (`payment` scope required), or transfers are restricted for the client.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests — rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error — e.g. exchange rate unavailable for the requested currencies.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable — request rejected by the gateway circuit breaker.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timeout — the service did not respond in time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferValidationErrorResponse"
                 }
               }
             }
@@ -4997,6 +5645,749 @@
         "required": [
           "data",
           "links"
+        ]
+      },
+      "TransferAccountType": {
+        "type": "string",
+        "description": "Account type that can take part in a transfer.",
+        "enum": [
+          "main",
+          "p2p",
+          "platform",
+          "payment_agent"
+        ]
+      },
+      "ExchangeRateResponse": {
+        "type": "object",
+        "description": "Successful exchange-rate quote response.",
+        "properties": {
+          "data": {
+            "type": "object",
+            "description": "The quote for the requested currency pair.",
+            "additionalProperties": true,
+            "properties": {
+              "exchange_rate": {
+                "type": "string",
+                "description": "Quoted exchange rate as a decimal string.",
+                "examples": [
+                  "0.0000095238"
+                ]
+              },
+              "rate_token": {
+                "type": "string",
+                "description": "Token attesting to this quote. Pass it to `POST /wallet/v1/transfers/exchange` (or a cross-currency platform transfer) to execute at the quoted rate."
+              }
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "TransferValidationRequest": {
+        "type": "object",
+        "description": "Transfer to validate. This is a strict whitelist — fields not listed here are rejected with `400`.",
+        "additionalProperties": false,
+        "properties": {
+          "source_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransferAccountType"
+              }
+            ],
+            "description": "Type of the source account."
+          },
+          "destination_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransferAccountType"
+              }
+            ],
+            "description": "Type of the destination account."
+          },
+          "source_id": {
+            "type": "string",
+            "description": "Identifier of the source account: the wallet UUID, or the platform account ID (e.g. `MTR5312343`) when `source_type` is `platform`.",
+            "examples": [
+              "942a2f2d-1f33-4559-994e-42b403033bc6"
+            ]
+          },
+          "destination_id": {
+            "type": "string",
+            "description": "Identifier of the destination account: the wallet UUID, or the platform account ID (e.g. `MTR5312343`) when `destination_type` is `platform`.",
+            "examples": [
+              "ef4b3abd-c05e-42ea-a3f2-021ec69e1580"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$",
+            "description": "Transfer amount as a decimal string (`>= 0`).",
+            "examples": [
+              "100.00"
+            ]
+          },
+          "balance": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$",
+            "description": "Current spendable balance of the source account, in `source_currency`. Same format as `amount`. Used to validate sufficient funds.",
+            "examples": [
+              "250.00"
+            ]
+          },
+          "source_currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]{1,18}$",
+            "description": "Currency code of the source account.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "destination_currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]{1,18}$",
+            "description": "Currency code of the destination account.",
+            "examples": [
+              "BTC"
+            ]
+          },
+          "rate": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$",
+            "description": "Exchange rate as a positive decimal string. Required for cross-currency transfers (`source_currency` differs from `destination_currency`); omit otherwise.",
+            "examples": [
+              "0.92"
+            ]
+          },
+          "source_platform_name": {
+            "type": "string",
+            "description": "Platform name. Provide when `source_type` is `platform`.",
+            "enum": [
+              "mt5",
+              "ctrader",
+              "options",
+              "crypto-exchange",
+              "tradingview"
+            ]
+          },
+          "destination_platform_name": {
+            "type": "string",
+            "description": "Platform name. Provide when `destination_type` is `platform`.",
+            "enum": [
+              "mt5",
+              "ctrader",
+              "options",
+              "crypto-exchange",
+              "tradingview"
+            ]
+          }
+        },
+        "required": [
+          "source_type",
+          "destination_type",
+          "source_id",
+          "destination_id",
+          "amount",
+          "balance",
+          "source_currency",
+          "destination_currency"
+        ]
+      },
+      "TransferValidationTransfer": {
+        "type": "object",
+        "description": "Classification of the validated transfer.",
+        "properties": {
+          "is_cross_currency": {
+            "type": "boolean",
+            "description": "Whether the source and destination currencies differ."
+          },
+          "type": {
+            "type": "string",
+            "description": "Kind of transfer.",
+            "enum": [
+              "wallet_to_wallet",
+              "wallet_to_platform"
+            ]
+          }
+        },
+        "required": [
+          "is_cross_currency",
+          "type"
+        ]
+      },
+      "TransferValidationSource": {
+        "type": "object",
+        "description": "Source side of the validated transfer. All amounts are decimal strings.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Source account identifier, echoed from the request (wallet UUID or platform account ID).",
+            "examples": [
+              "942a2f2d-1f33-4559-994e-42b403033bc6"
+            ]
+          },
+          "type": {
+            "$ref": "#/components/schemas/TransferAccountType"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency of the source account.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "description": "Requested amount.",
+            "examples": [
+              "100.00"
+            ]
+          },
+          "net_amount": {
+            "type": "string",
+            "description": "Amount minus the fee, in the source currency.",
+            "examples": [
+              "99.50"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "currency",
+          "amount",
+          "net_amount"
+        ]
+      },
+      "TransferValidationDestination": {
+        "type": "object",
+        "description": "Destination side of the validated transfer. All amounts are decimal strings.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Destination account identifier, echoed from the request (wallet UUID or platform account ID).",
+            "examples": [
+              "ef4b3abd-c05e-42ea-a3f2-021ec69e1580"
+            ]
+          },
+          "type": {
+            "$ref": "#/components/schemas/TransferAccountType"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency of the destination account.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "description": "Estimated amount the destination receives, floored to the destination currency's precision. For cross-currency transfers this is an estimate, not the settled value.",
+            "examples": [
+              "99.50"
+            ]
+          },
+          "estimated": {
+            "type": "boolean",
+            "description": "Always `true` — `amount` is an estimate."
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "currency",
+          "amount",
+          "estimated"
+        ]
+      },
+      "TransferValidationFee": {
+        "type": "object",
+        "description": "Fee that would be charged on the transfer.",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "Fee amount, in `currency`.",
+            "examples": [
+              "0.50"
+            ]
+          },
+          "percentage": {
+            "type": "number",
+            "description": "Nominal fee percentage.",
+            "examples": [
+              0.5
+            ]
+          },
+          "applied_percentage": {
+            "type": "string",
+            "description": "Effective fee percentage actually charged. Exceeds `percentage` when `min_fee_applied` is `true`.",
+            "examples": [
+              "0.50"
+            ]
+          },
+          "min_fee_applied": {
+            "type": "boolean",
+            "description": "`true` when the percentage-based fee was below the currency's smallest ledger unit and was raised to it."
+          },
+          "reason_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the fee is charged. `null` (or absent) when no fee applies.",
+            "enum": [
+              "convenience_fee",
+              "currency_exchange",
+              null
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency the fee is charged in — the wallet side of the transfer.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "description": "Account the fee is charged from (wallet UUID or platform account ID).",
+            "examples": [
+              "942a2f2d-1f33-4559-994e-42b403033bc6"
+            ]
+          }
+        },
+        "required": [
+          "amount",
+          "percentage",
+          "applied_percentage",
+          "min_fee_applied",
+          "currency",
+          "source"
+        ]
+      },
+      "TransferValidationDetails": {
+        "type": "object",
+        "description": "Breakdown of the validated transfer.",
+        "properties": {
+          "transfer": {
+            "$ref": "#/components/schemas/TransferValidationTransfer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/TransferValidationSource"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/TransferValidationDestination"
+          },
+          "fee": {
+            "$ref": "#/components/schemas/TransferValidationFee"
+          }
+        },
+        "required": [
+          "transfer",
+          "source",
+          "destination",
+          "fee"
+        ]
+      },
+      "TransferValidationResponse": {
+        "type": "object",
+        "description": "Successful transfer validation response.",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "is_valid": {
+                "type": "boolean",
+                "description": "Always `true` — an invalid transfer produces an error response, not `false`."
+              },
+              "details": {
+                "$ref": "#/components/schemas/TransferValidationDetails"
+              }
+            },
+            "required": [
+              "is_valid",
+              "details"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "TransferValidationErrorItem": {
+        "type": "object",
+        "description": "A single error entry.",
+        "properties": {
+          "status": {
+            "type": "integer",
+            "description": "HTTP-equivalent status code for this error."
+          },
+          "code": {
+            "type": "string",
+            "description": "Machine-readable error code identifying what went wrong. Common values: `ValidationError`, `BadRequest`, `CurrencyNotAllowed`, `Unauthorized`, `Forbidden`, `InternalServerError`."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable description of the error condition."
+          },
+          "field": {
+            "type": "string",
+            "description": "Name of the offending request field. Present only for `ValidationError`."
+          },
+          "i18n_key": {
+            "type": "string",
+            "description": "Localization key for the message."
+          },
+          "details": {
+            "type": "object",
+            "description": "Additional structured context for the error.",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "status",
+          "code",
+          "message"
+        ]
+      },
+      "TransferValidationErrorResponse": {
+        "type": "object",
+        "description": "Standard error envelope. `errors` contains one or more entries describing what went wrong.",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransferValidationErrorItem"
+            },
+            "description": "One or more error entries."
+          }
+        },
+        "required": [
+          "errors"
+        ]
+      },
+      "TransferRequest": {
+        "type": "object",
+        "description": "Same-currency transfer between two wallets owned by the authenticated client. This is a strict whitelist — fields not listed here are rejected with `400`.",
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]{1,18}$",
+            "description": "Currency of the transfer. Both wallets must hold a balance in this currency.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$",
+            "description": "Transfer amount as a decimal string. Any applicable fee is deducted from this amount.",
+            "examples": [
+              "100.00"
+            ]
+          },
+          "source_wallet_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Wallet to debit. Must belong to the authenticated client.",
+            "examples": [
+              "942a2f2d-1f33-4559-994e-42b403033bc6"
+            ]
+          },
+          "destination_wallet_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Wallet to credit. Must belong to the authenticated client.",
+            "examples": [
+              "ef4b3abd-c05e-42ea-a3f2-021ec69e1580"
+            ]
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Idempotency key. Reusing a previously submitted `request_id` does not create a duplicate transfer.",
+            "examples": [
+              "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional free-text note attached to the transfer.",
+            "examples": [
+              "Move funds to P2P wallet"
+            ]
+          }
+        },
+        "required": [
+          "currency",
+          "amount",
+          "source_wallet_id",
+          "destination_wallet_id",
+          "request_id"
+        ]
+      },
+      "ExchangeTransferRequest": {
+        "type": "object",
+        "description": "Cross-currency transfer between two wallets owned by the authenticated client. This is a strict whitelist — fields not listed here are rejected with `400`.",
+        "additionalProperties": false,
+        "properties": {
+          "source_wallet_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Wallet to debit, in `source_currency`. Must belong to the authenticated client.",
+            "examples": [
+              "942a2f2d-1f33-4559-994e-42b403033bc6"
+            ]
+          },
+          "source_currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]{1,18}$",
+            "description": "Currency debited from the source wallet.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$",
+            "description": "Amount to convert, in `source_currency`, as a decimal string. Any applicable currency-exchange fee is deducted from this amount.",
+            "examples": [
+              "100.00"
+            ]
+          },
+          "destination_wallet_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Wallet to credit, in `destination_currency`. Must belong to the authenticated client.",
+            "examples": [
+              "ef4b3abd-c05e-42ea-a3f2-021ec69e1580"
+            ]
+          },
+          "destination_currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]{1,18}$",
+            "description": "Currency credited to the destination wallet.",
+            "examples": [
+              "BTC"
+            ]
+          },
+          "exchange_rate": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$",
+            "description": "Quoted exchange rate as a positive decimal string, from an exchange-rate quote obtained beforehand.",
+            "examples": [
+              "0.0000095238"
+            ]
+          },
+          "rate_token": {
+            "type": "string",
+            "description": "Token attesting to the quoted exchange rate, issued together with the quote.",
+            "examples": [
+              "eyJhbGciOi..."
+            ]
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Idempotency key. Reusing a previously submitted `request_id` does not create a duplicate transfer.",
+            "examples": [
+              "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional free-text note attached to the transfer.",
+            "examples": [
+              "Convert USD to BTC"
+            ]
+          }
+        },
+        "required": [
+          "source_wallet_id",
+          "source_currency",
+          "amount",
+          "destination_wallet_id",
+          "destination_currency",
+          "exchange_rate",
+          "rate_token",
+          "request_id"
+        ]
+      },
+      "PlatformTransferRequest": {
+        "type": "object",
+        "description": "Transfer between a wallet and a trading platform account owned by the authenticated client. This is a strict whitelist — fields not listed here are rejected with `400`.",
+        "additionalProperties": false,
+        "properties": {
+          "wallet_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Wallet on the wallet side of the transfer. Must belong to the authenticated client.",
+            "examples": [
+              "942a2f2d-1f33-4559-994e-42b403033bc6"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$",
+            "description": "Transfer amount as a decimal string, in `currency`. Any applicable fee is deducted from this amount.",
+            "examples": [
+              "100.00"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]{1,18}$",
+            "description": "Currency of the platform account. Must match the account's actual currency.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "description": "`from_wallet` debits the wallet to fund the platform account; `to_wallet` debits the platform account to fund the wallet.",
+            "enum": [
+              "to_wallet",
+              "from_wallet"
+            ]
+          },
+          "platform_name": {
+            "type": "string",
+            "description": "Trading platform of the account.",
+            "enum": [
+              "mt5",
+              "ctrader",
+              "options",
+              "crypto-exchange",
+              "tradingview"
+            ]
+          },
+          "platform_account_id": {
+            "type": "string",
+            "description": "Login/account identifier on the platform. Must belong to the authenticated client and be a real (not demo) account.",
+            "examples": [
+              "MTR9000001"
+            ]
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Idempotency key. Reusing a previously submitted `request_id` is rejected with `DuplicateRequestID`.",
+            "examples": [
+              "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional free-text note attached to the transfer.",
+            "examples": [
+              "Fund MT5 account"
+            ]
+          },
+          "wallet_currency": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]{1,18}$",
+            "description": "The wallet's currency. Send only for cross-currency platform transfers, when it differs from `currency`; then `exchange_rate` and `rate_token` are also required.",
+            "examples": [
+              "EUR"
+            ]
+          },
+          "exchange_rate": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$",
+            "description": "Quoted exchange rate as a positive decimal string. Required together with `rate_token` when `wallet_currency` differs from `currency`.",
+            "examples": [
+              "0.92"
+            ]
+          },
+          "rate_token": {
+            "type": "string",
+            "description": "Token attesting to the quoted exchange rate. Required together with `exchange_rate` when `wallet_currency` differs from `currency`.",
+            "examples": [
+              "eyJhbGciOi..."
+            ]
+          }
+        },
+        "required": [
+          "wallet_id",
+          "amount",
+          "currency",
+          "direction",
+          "platform_name",
+          "platform_account_id",
+          "request_id"
+        ],
+        "dependentRequired": {
+          "wallet_currency": [
+            "exchange_rate",
+            "rate_token"
+          ],
+          "exchange_rate": [
+            "wallet_currency",
+            "rate_token"
+          ],
+          "rate_token": [
+            "wallet_currency",
+            "exchange_rate"
+          ]
+        }
+      },
+      "TransferExecuteResponse": {
+        "type": "object",
+        "description": "Successful transfer execution response.",
+        "properties": {
+          "data": {
+            "type": "object",
+            "description": "Details of the executed transfer. Always echoes the request's `request_id`; the remaining fields describe the recorded transfer.",
+            "additionalProperties": true,
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The `request_id` supplied in the request, echoed back as the idempotency reference of the executed transfer.",
+                "examples": [
+                  "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                ]
+              }
+            },
+            "required": [
+              "request_id"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "PlatformTransferExecuteResponse": {
+        "type": "object",
+        "description": "Successful platform transfer execution response.",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "object",
+                "description": "Status details of the executed transfer.",
+                "additionalProperties": true
+              },
+              "request_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The `request_id` supplied in the request, echoed back as the idempotency reference of the executed transfer.",
+                "examples": [
+                  "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "request_id"
+            ]
+          }
+        },
+        "required": [
+          "data"
         ]
       }
     }

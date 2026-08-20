@@ -6,6 +6,26 @@ Newest first. Entries are added automatically by the publish workflow.
 
 <!-- changelog-entries -->
 
+## production_v20260819_0 — 2026-08-20
+
+_Schema changes since `production_v20260817_0`_
+
+### Changed schema files
+
+- `rest-api-openapi.json`
+- `wallet_exchange_rate_request.schema.json`
+- `wallet_exchange_rate_response.schema.json`
+- `wallet_transfer_exchange_request.schema.json`
+- `wallet_transfer_exchange_response.schema.json`
+- `wallet_transfer_platforms_request.schema.json`
+- `wallet_transfer_platforms_response.schema.json`
+- `wallet_transfer_request.schema.json`
+- `wallet_transfer_response.schema.json`
+- `wallet_transfer_validate_request.schema.json`
+- `wallet_transfer_validate_response.schema.json`
+
+[Release](https://github.com/deriv-com/deriv-api-schemas/releases/tag/production_v20260819_0)
+
 ## production_v20260804_0 — 2026-08-04
 
 _Schema changes since `production_v20260730_0`_
