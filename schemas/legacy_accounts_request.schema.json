@@ -7,7 +7,7 @@
   "properties": {
     "Deriv-App-ID": {
       "type": "string",
-      "description": "Application identifier. Passed as a request header.",
+      "description": "Application identifier. Required for Personal Access Token (PAT) authentication; not required for OAuth Bearer tokens. Passed as a request header.",
       "example": "YOUR_APP_ID"
     },
     "Authorization": {

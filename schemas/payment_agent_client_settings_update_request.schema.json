@@ -9,7 +9,7 @@
       "properties": {
         "Deriv-App-ID": {
           "type": "string",
-          "description": "Application identifier"
+          "description": "Application identifier. Required for Personal Access Token (PAT) authentication; not required for OAuth Bearer tokens."
         },
         "Authorization": {
           "type": "string",

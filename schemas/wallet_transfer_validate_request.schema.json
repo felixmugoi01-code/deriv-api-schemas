@@ -9,7 +9,7 @@
       "properties": {
         "Deriv-App-ID": {
           "type": "string",
-          "description": "Application identifier"
+          "description": "Application identifier. Required for Personal Access Token (PAT) authentication; not required for OAuth Bearer tokens."
         },
         "Authorization": {
           "type": "string",
@@ -80,12 +80,24 @@
         },
         "source_platform_name": {
           "type": "string",
-          "enum": ["mt5", "ctrader", "options", "crypto-exchange", "tradingview"],
+          "enum": [
+            "mt5",
+            "ctrader",
+            "options",
+            "crypto-exchange",
+            "tradingview"
+          ],
           "description": "Platform name. Send when source_type is platform."
         },
         "destination_platform_name": {
           "type": "string",
-          "enum": ["mt5", "ctrader", "options", "crypto-exchange", "tradingview"],
+          "enum": [
+            "mt5",
+            "ctrader",
+            "options",
+            "crypto-exchange",
+            "tradingview"
+          ],
           "description": "Platform name. Send when destination_type is platform."
         }
       },
