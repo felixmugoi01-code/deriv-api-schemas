@@ -6,6 +6,46 @@ Newest first. Entries are added automatically by the publish workflow.
 
 <!-- changelog-entries -->
 
+## production_v20260901_0 — 2026-09-07
+
+_Schema changes since `production_v20260827_0`_
+
+### Changed schema files
+
+- `rest-api-openapi.json`
+- `account_nickname_request.schema.json`
+- `create_account_request.schema.json`
+- `get_accounts_request.schema.json`
+- `legacy_accounts_request.schema.json`
+- `legacy_migration_status_request.schema.json`
+- `legacy_statement_request.schema.json`
+- `markup_statistics_request.schema.json`
+- `partners_analytics_overview_request.schema.json`
+- `partners_analytics_overview_response.schema.json`
+- `partners_client_tags_check_request.schema.json`
+- `partners_client_tags_check_response.schema.json`
+- `payment_agent_client_settings_request.schema.json`
+- `payment_agent_client_settings_update_request.schema.json`
+- `payment_agent_get_request.schema.json`
+- `payment_agent_list_request.schema.json`
+- `payment_agent_statistics_request.schema.json`
+- `payment_agent_transfer_request.schema.json`
+- `payment_agent_transfer_status_request.schema.json`
+- `payment_agent_withdraw_request.schema.json`
+- `payment_agent_withdraw_status_request.schema.json`
+- `payment_agent_withdraw_verification_request.schema.json`
+- `reset_demo_balance_request.schema.json`
+- `wallet_exchange_rate_request.schema.json`
+- `wallet_list_request.schema.json`
+- `wallet_transactions_request.schema.json`
+- `wallet_transfer_exchange_request.schema.json`
+- `wallet_transfer_platforms_request.schema.json`
+- `wallet_transfer_request.schema.json`
+- `wallet_transfer_validate_request.schema.json`
+- `websocket_request.schema.json`
+
+[Release](https://github.com/deriv-com/deriv-api-schemas/releases/tag/production_v20260901_0)
+
 ## production_v20260819_0 — 2026-08-20
 
 _Schema changes since `production_v20260817_0`_
